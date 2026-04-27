@@ -1,0 +1,12 @@
+import { redirect } from "next/navigation";
+export const dynamic = "force-dynamic";
+
+export default async function AdminLoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
+  redirect(`/dashboard/admin/login${error ? "?error=" + encodeURIComponent(error) : ""}`);
+}
+
