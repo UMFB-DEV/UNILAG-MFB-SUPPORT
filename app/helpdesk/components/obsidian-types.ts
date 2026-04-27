@@ -13,5 +13,13 @@ export type HelpdeskState = {
   notifications: Notification[];
 };
 
-export type MainView = "dashboard" | "tickets" | "my-tickets" | "new-ticket" | "settings";
+export type MainView =
+  | "dashboard"
+  | "agents"
+  | "users"
+  | "create-agent"
+  | "tickets"
+  | "my-tickets"
+  | "new-ticket"
+  | "settings";
 

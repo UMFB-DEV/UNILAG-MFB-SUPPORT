@@ -6,6 +6,7 @@ export const authUserSchema = z.object({
   name: z.string().optional().nullable(),
   role: z.string(),
   department: z.string().optional().nullable(),
+  createdAt: z.string().optional().nullable(),
 });
 
 export type AuthUser = z.infer<typeof authUserSchema>;
@@ -54,6 +55,29 @@ export const passwordResetResponseSchema = z.object({
 });
 
 export type PasswordResetResponse = z.infer<typeof passwordResetResponseSchema>;
+
+export const updateProfileInputSchema = z
+  .object({
+    email: z.string().email().optional(),
+    name: z.string().optional().nullable(),
+  })
+  .refine((v) => typeof v.email === "string" || "name" in v, {
+    message: "At least one field is required",
+  });
+
+export type UpdateProfileInput = z.infer<typeof updateProfileInputSchema>;
+
+export const updateProfileResponseSchema = z.object({
+  success: z.boolean(),
+  message: z.string().optional(),
+  data: z
+    .object({
+      user: authUserSchema,
+    })
+    .optional(),
+});
+
+export type UpdateProfileResponse = z.infer<typeof updateProfileResponseSchema>;
 
 export const authResponseSchema = z.object({
   success: z.boolean(),

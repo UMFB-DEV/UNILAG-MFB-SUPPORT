@@ -1,6 +1,6 @@
 import { departmentsResponseSchema, type DepartmentsResponse } from "./schemas";
 
-const BASE_URL = "http://localhost:4000";
+const BASE_URL = "https://unilag-mfb-support-backend.onrender.com";
 
 type ApiError = {
   status: number;

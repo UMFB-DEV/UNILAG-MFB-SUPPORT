@@ -9,6 +9,7 @@ import {
   registerAction,
   registerAgentAction,
   resetPasswordAction,
+  updateProfileAction,
 } from "./action";
 import type {
   ForgotPasswordInput,
@@ -16,6 +17,7 @@ import type {
   RegisterAgentInput,
   RegisterInput,
   ResetPasswordInput,
+  UpdateProfileInput,
 } from "./schemas";
 
 export function useRegisterMutation() {
@@ -45,6 +47,15 @@ export function useForgotPasswordMutation() {
 export function useResetPasswordMutation() {
   return useMutation({
     mutationFn: (input: ResetPasswordInput) => resetPasswordAction(input),
+  });
+}
+
+export function useUpdateProfileMutation({ token }: { token: string | null }) {
+  return useMutation({
+    mutationFn: (input: UpdateProfileInput) => {
+      if (!token) throw new Error("Missing token");
+      return updateProfileAction({ token, input });
+    },
   });
 }
 

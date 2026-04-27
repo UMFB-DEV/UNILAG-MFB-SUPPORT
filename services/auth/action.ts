@@ -7,6 +7,8 @@ import {
   registerAgentInputSchema,
   registerInputSchema,
   resetPasswordInputSchema,
+  updateProfileInputSchema,
+  updateProfileResponseSchema,
   type AuthResponse,
   type ForgotPasswordInput,
   type LoginInput,
@@ -15,9 +17,11 @@ import {
   type RegisterAgentInput,
   type RegisterInput,
   type ResetPasswordInput,
+  type UpdateProfileInput,
+  type UpdateProfileResponse,
 } from "./schemas";
 
-const BASE_URL = "http://localhost:4000";
+const BASE_URL = "https://unilag-mfb-support-backend.onrender.com";
 
 const DEBUG_AUTH = process.env.NODE_ENV !== "production";
 
@@ -31,6 +35,26 @@ async function parseJsonSafe(res: Response) {
     return await res.json();
   } catch {
     return null;
+  }
+}
+
+export async function updateProfileAction({
+  token,
+  input,
+}: {
+  token: string;
+  input: UpdateProfileInput;
+}): Promise<UpdateProfileResponse> {
+  const payload = updateProfileInputSchema.parse(input);
+  const raw = await requestJson<unknown>({ path: "/auth/profile", method: "PATCH", body: payload, token });
+  try {
+    return updateProfileResponseSchema.parse(raw);
+  } catch (e) {
+    if (DEBUG_AUTH) {
+      // eslint-disable-next-line no-console
+      console.error("[auth] update-profile parse error", e);
+    }
+    throw e;
   }
 }
 
@@ -83,7 +107,7 @@ async function requestJson<T>({
   token,
 }: {
   path: string;
-  method: "GET" | "POST";
+  method: "GET" | "POST" | "PATCH";
   body?: unknown;
   token?: string | null;
 }): Promise<T> {

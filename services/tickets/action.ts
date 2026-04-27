@@ -1,11 +1,23 @@
 import { createTicketCommentInputSchema, createTicketCommentResponseSchema, createTicketInputSchema, createTicketResponseSchema, takeTicketResponseSchema, ticketCommentsResponseSchema, updateTicketStatusInputSchema, updateTicketStatusResponseSchema, ticketsResponseSchema, type CreateTicketCommentInput, type CreateTicketCommentResponse, type CreateTicketInput, type CreateTicketResponse, type TakeTicketResponse, type TicketCommentsResponse, type TicketsResponse, type UpdateTicketStatusInput, type UpdateTicketStatusResponse } from "./schemas";
 
-const BASE_URL = "http://localhost:4000";
+const BASE_URL = "https://unilag-mfb-support-backend.onrender.com";
 
 type ApiError = {
   status: number;
   message: string;
 };
+
+class ApiRequestError extends Error {
+  status: number;
+  raw: unknown;
+
+  constructor({ status, message, raw }: { status: number; message: string; raw: unknown }) {
+    super(message);
+    this.name = "ApiRequestError";
+    this.status = status;
+    this.raw = raw;
+  }
+}
 
 async function parseJsonSafe(res: Response) {
   try {
@@ -28,6 +40,10 @@ export async function getTicketsAction({
     keyword?: string;
   };
 }): Promise<TicketsResponse> {
+  if (process.env.NODE_ENV !== "production") {
+    // eslint-disable-next-line no-console
+    console.log("[endpoint] GET /tickets", params ?? null);
+  }
   const url = new URL(`${BASE_URL}/tickets`);
   if (params) {
     if (params.status) url.searchParams.set("status", params.status);
@@ -54,8 +70,11 @@ export async function getTicketsAction({
       typeof raw.message === "string"
         ? raw.message
         : `Request failed (${res.status})`;
-    const err: ApiError = { status: res.status, message: msg };
-    throw err;
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.error("[endpoint] GET /tickets error", { status: res.status, message: msg, raw });
+    }
+    throw new ApiRequestError({ status: res.status, message: msg, raw });
   }
 
   const parsed = ticketsResponseSchema.parse(raw);
@@ -90,8 +109,7 @@ export async function takeTicketAction({
       typeof raw.message === "string"
         ? raw.message
         : `Request failed (${res.status})`;
-    const err: ApiError = { status: res.status, message: msg };
-    throw err;
+    throw new ApiRequestError({ status: res.status, message: msg, raw });
   }
 
   return takeTicketResponseSchema.parse(raw);
@@ -126,8 +144,7 @@ export async function updateTicketStatusAction({
       typeof raw.message === "string"
         ? raw.message
         : `Request failed (${res.status})`;
-    const err: ApiError = { status: res.status, message: msg };
-    throw err;
+    throw new ApiRequestError({ status: res.status, message: msg, raw });
   }
 
   return updateTicketStatusResponseSchema.parse(raw);
@@ -157,8 +174,7 @@ export async function getTicketCommentsAction({
       typeof raw.message === "string"
         ? raw.message
         : `Request failed (${res.status})`;
-    const err: ApiError = { status: res.status, message: msg };
-    throw err;
+    throw new ApiRequestError({ status: res.status, message: msg, raw });
   }
 
   return ticketCommentsResponseSchema.parse(raw);
@@ -196,8 +212,7 @@ export async function createTicketCommentAction({
       typeof raw.message === "string"
         ? raw.message
         : `Request failed (${res.status})`;
-    const err: ApiError = { status: res.status, message: msg };
-    throw err;
+    throw new ApiRequestError({ status: res.status, message: msg, raw });
   }
 
   return createTicketCommentResponseSchema.parse(raw);
@@ -230,8 +245,7 @@ export async function createTicketAction({
       typeof raw.message === "string"
         ? raw.message
         : `Request failed (${res.status})`;
-    const err: ApiError = { status: res.status, message: msg };
-    throw err;
+    throw new ApiRequestError({ status: res.status, message: msg, raw });
   }
 
   return createTicketResponseSchema.parse(raw);
@@ -276,8 +290,7 @@ export async function getDepartmentTicketsAction({
       typeof raw.message === "string"
         ? raw.message
         : `Request failed (${res.status})`;
-    const err: ApiError = { status: res.status, message: msg };
-    throw err;
+    throw new ApiRequestError({ status: res.status, message: msg, raw });
   }
 
   const parsed = ticketsResponseSchema.parse(raw);

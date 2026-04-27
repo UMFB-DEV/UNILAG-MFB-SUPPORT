@@ -12,19 +12,128 @@ function responseMinutes(userId: number, tickets: Ticket[]) {
   const assigned = tickets.filter((t) => t.assignedTo === userId);
   if (!assigned.length) return 0;
   const avgMs =
-    assigned.reduce((sum, t) => sum + Math.max(1, t.updated - t.created), 0) /
-    assigned.length;
+    assigned.reduce((sum, t) => {
+      const end = t.resolvedAt ?? t.updated;
+      return sum + Math.max(1, end - t.created);
+    }, 0) / assigned.length;
   return Math.max(1, Math.round(avgMs / 60000));
+}
+
+function avgResolutionHoursFromTickets(tickets: Ticket[]) {
+  const resolved = tickets.filter((t) => typeof t.resolvedAt === "number" && t.resolvedAt > 0);
+  if (!resolved.length) return null;
+  const avgMs =
+    resolved.reduce((sum, t) => sum + Math.max(1, (t.resolvedAt as number) - t.created), 0) /
+    resolved.length;
+  return Math.max(0.1, Math.round((avgMs / 3_600_000) * 10) / 10);
+}
+
+export function AgentPerformanceTable({
+  tickets,
+  users,
+  limit,
+  onViewAllAgents,
+  showViewAllAgentsButton,
+}: {
+  tickets: Ticket[];
+  users: User[];
+  limit?: number;
+  onViewAllAgents?: () => void;
+  showViewAllAgentsButton?: boolean;
+}) {
+  const agents = users.filter((u) => u.role === "agent" || u.role === "admin");
+  const visibleAgents = typeof limit === "number" ? agents.slice(0, limit) : agents;
+
+  return (
+    <section className="overflow-hidden rounded-xl border border-[#1F1F21] bg-[#111111]">
+      <div className="flex items-center justify-between border-b border-[#1F1F21] p-6">
+        <div>
+          <h4 className="text-lg font-medium text-zinc-100">Agent Performance</h4>
+          <p className="mt-1 text-xs text-zinc-500">Archive specialists and current capacity</p>
+        </div>
+        {showViewAllAgentsButton ? (
+          <button
+            className="text-xs font-bold text-[#D4A373] hover:underline"
+            type="button"
+            onClick={onViewAllAgents}
+          >
+            View All Agents
+          </button>
+        ) : null}
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="bg-[#1A1A1A]/50 text-[10px] uppercase tracking-[0.16em] text-zinc-500">
+              <th className="px-6 py-4">Specialist</th>
+              <th className="px-6 py-4">Status</th>
+              <th className="px-6 py-4 text-center">Active</th>
+              <th className="px-6 py-4 text-center">Resolved</th>
+              <th className="px-6 py-4 text-right">Avg Response</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#1F1F21]">
+            {visibleAgents.map((a) => {
+              const active = tickets.filter(
+                (t) => t.assignedTo === a.id && (t.status === "Open" || t.status === "In Progress"),
+              ).length;
+              const resolved = tickets.filter(
+                (t) => t.assignedTo === a.id && (t.status === "Resolved" || t.status === "Closed"),
+              ).length;
+              const avg = responseMinutes(a.id, tickets);
+              return (
+                <tr key={a.id}>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-semibold text-zinc-100"
+                        style={{ backgroundColor: a.color }}
+                      >
+                        {a.name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .slice(0, 2)}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-zinc-200">{a.name}</p>
+                        <p className="text-[10px] text-zinc-500">{a.role === "admin" ? "Admin" : "Support Agent"}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      <span className="text-xs text-zinc-400">Online</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-center text-zinc-300">{active}</td>
+                  <td className="px-6 py-4 text-center text-zinc-300">{resolved}</td>
+                  <td className="px-6 py-4 text-right text-zinc-100">{avg}m</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
 }
 
 export function AdminDashboardCanvas({
   stats,
   tickets,
   users,
+  averageResolutionHours,
+  closedTickets,
+  onViewAllAgents,
 }: {
   stats: Stats;
   tickets: Ticket[];
   users: User[];
+  averageResolutionHours?: number | null;
+  closedTickets: number;
+  onViewAllAgents?: () => void;
 }) {
   const resolvedToday = tickets.filter(
     (t) =>
@@ -37,42 +146,35 @@ export function AdminDashboardCanvas({
   const low = tickets.filter((t) => t.priority === "Low").length;
   const totalPriorities = Math.max(1, high + medium + low);
 
-  const urgentPct = Math.round((high / totalPriorities) * 100);
+  const highPct = Math.round((high / totalPriorities) * 100);
   const mediumPct = Math.round((medium / totalPriorities) * 100);
-  const lowPct = Math.max(0, 100 - urgentPct - mediumPct);
+  const lowPct = Math.max(0, 100 - highPct - mediumPct);
 
-  const agents = users.filter((u) => u.role === "agent" || u.role === "admin");
+  const avgResolution =
+    typeof averageResolutionHours === "number"
+      ? averageResolutionHours
+      : avgResolutionHoursFromTickets(tickets);
+
+  const now = Date.now();
+  const day = 86_400_000;
+  const activityBuckets = Array.from({ length: 10 }).map((_, i) => {
+    const start = now - (9 - i) * day;
+    const end = start + day;
+    return tickets.filter((t) => t.created >= start && t.created < end).length;
+  });
+  const maxBucket = Math.max(1, ...activityBuckets);
+  const activityHeights = activityBuckets.map((n) => Math.round((n / maxBucket) * 100));
 
   return (
     <div className="space-y-6">
-      <section className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="text-3xl font-semibold text-zinc-100">Archive Overview</h2>
-          <p className="mt-1 text-sm text-zinc-500">
-            Real-time performance metrics for Obsidian Archive
-          </p>
-        </div>
-        <div className="flex rounded-lg border border-[#1F1F21] bg-[#111111] p-1">
-          <button className="rounded-md bg-[#1A1A1A] px-4 py-1.5 text-xs font-bold text-[#D4A373]">
-            Today
-          </button>
-          <button className="px-4 py-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-300">
-            Week
-          </button>
-          <button className="px-4 py-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-300">
-            Month
-          </button>
-        </div>
-      </section>
-
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricBlock label="Total Tickets" value={stats.total} delta="+12%" icon="article" />
-        <MetricBlock label="Open Tickets" value={stats.open} delta="+4%" icon="pending" />
-        <MetricBlock label="Resolved Today" value={resolvedToday} delta="+8%" icon="check_circle" />
+        <MetricBlock label="Total Tickets" value={stats.total} delta="—" icon="article" />
+        <MetricBlock label="Open Tickets" value={stats.open} delta="—" icon="pending" />
+        <MetricBlock label="Closed Tickets" value={closedTickets} delta="—" icon="check_circle" />
         <MetricBlock
           label="Avg Resolution Time"
-          value={`${Math.max(1, Math.round((stats.resolved + stats.closed) ? 2.4 : 0))}h`}
-          delta="-18%"
+          value={avgResolution === null || avgResolution === undefined ? "—" : `${avgResolution}h`}
+          delta="—"
           icon="timer"
         />
       </section>
@@ -84,7 +186,7 @@ export function AdminDashboardCanvas({
             <span className="text-zinc-500">⋯</span>
           </div>
           <div className="flex h-64 items-end gap-2">
-            {[40, 65, 55, 85, 45, 35, 60, 75, 50, 90].map((h, idx) => (
+            {activityHeights.map((h, idx) => (
               <div
                 key={idx}
                 className={`flex-1 rounded-t-sm ${
@@ -104,90 +206,20 @@ export function AdminDashboardCanvas({
               Current open ticket distribution
             </p>
           </div>
-          <ProgressRow label="Urgent" value={urgentPct} bar="bg-rose-500" />
-          <ProgressRow label="High" value={urgentPct} bar="bg-[#D4A373]" />
+          <ProgressRow label="High" value={highPct} bar="bg-[#D4A373]" />
           <ProgressRow label="Medium" value={mediumPct} bar="bg-cyan-400" />
           <ProgressRow label="Low" value={lowPct} bar="bg-zinc-500" />
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-xl border border-[#1F1F21] bg-[#111111]">
-        <div className="flex items-center justify-between border-b border-[#1F1F21] p-6">
-          <div>
-            <h4 className="text-lg font-medium text-zinc-100">Agent Performance</h4>
-            <p className="mt-1 text-xs text-zinc-500">
-              Archive specialists and current capacity
-            </p>
-          </div>
-          <button className="text-xs font-bold text-[#D4A373] hover:underline">
-            View All Agents
-          </button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="bg-[#1A1A1A]/50 text-[10px] uppercase tracking-[0.16em] text-zinc-500">
-                <th className="px-6 py-4">Specialist</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4 text-center">Active</th>
-                <th className="px-6 py-4 text-center">Resolved</th>
-                <th className="px-6 py-4 text-right">Avg Response</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#1F1F21]">
-              {agents.slice(0, 3).map((a) => {
-                const active = tickets.filter(
-                  (t) => t.assignedTo === a.id && (t.status === "Open" || t.status === "In Progress"),
-                ).length;
-                const resolved = tickets.filter(
-                  (t) => t.assignedTo === a.id && (t.status === "Resolved" || t.status === "Closed"),
-                ).length;
-                const avg = responseMinutes(a.id, tickets);
-                return (
-                  <tr key={a.id}>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-semibold text-zinc-100"
-                          style={{ backgroundColor: a.color }}
-                        >
-                          {a.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")
-                            .slice(0, 2)}
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-zinc-200">{a.name}</p>
-                          <p className="text-[10px] text-zinc-500">
-                            {a.role === "admin" ? "Head of Archives" : "L3 Support"}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        <span className="text-xs text-zinc-400">Online</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-center text-zinc-300">{active}</td>
-                    <td className="px-6 py-4 text-center text-zinc-300">{resolved}</td>
-                    <td className="px-6 py-4 text-right text-zinc-100">{avg}m</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <AgentPerformanceTable tickets={tickets} users={users} limit={5} onViewAllAgents={onViewAllAgents} showViewAllAgentsButton />
 
       <footer className="flex flex-wrap items-center justify-between border-t border-[#1F1F21] px-2 py-4 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-600">
         <div className="flex gap-6">
           <span>System Health: Optimal</span>
-          <span>Server: Obsidian-Alpha-12</span>
+          <span>Server: unilag-mfb-support</span>
         </div>
-        <span>© 2024 Obsidian Archive Technology</span>
+        <span>© 2024 unilag-mfb-support</span>
       </footer>
     </div>
   );

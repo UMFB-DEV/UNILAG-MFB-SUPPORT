@@ -6,8 +6,16 @@ import { useRouter } from "next/navigation";
 
 import { HelpdeskPro } from "../helpdesk/HelpdeskPro";
 
-import { DEMO_USERS, type Role as DemoRole } from "@/lib/helpdesk/demoData";
+import type { Role as DemoRole } from "@/lib/helpdesk/demoData";
 import { useAuthStore } from "@/stores/authStore";
+
+function emailToId(email: string) {
+  let hash = 0;
+  for (let i = 0; i < email.length; i++) {
+    hash = (hash * 31 + email.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash) || 1;
+}
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -47,9 +55,15 @@ export default function DashboardPage() {
   }, [apiUser?.role]);
 
   const initialUser = useMemo(() => {
-    const fallback = DEMO_USERS.find((u) => u.role === role) ?? DEMO_USERS[0]!;
-    return fallback;
-  }, [role]);
+    const email = apiUser?.email ?? "unknown@example.com";
+    const name = apiUser?.name ?? email.split("@")[0] ?? "User";
+    return {
+      id: emailToId(email.toLowerCase()),
+      email,
+      name,
+      role,
+    };
+  }, [apiUser?.email, apiUser?.name, role]);
 
   if (!token || booting) {
     return null;

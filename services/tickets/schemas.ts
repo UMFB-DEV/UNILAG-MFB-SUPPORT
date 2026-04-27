@@ -15,6 +15,8 @@ export const apiTicketSchema = z.object({
   priority: z.enum(["low", "medium", "high"]),
   status: z.enum(["open", "in_progress", "resolved", "closed"]),
   createdAt: z.string(),
+  updatedAt: z.string().optional().nullable(),
+  resolvedAt: z.string().optional().nullable(),
   createdBy: ticketUserSchema,
   assignedTo: ticketUserSchema.nullable().optional(),
 });
