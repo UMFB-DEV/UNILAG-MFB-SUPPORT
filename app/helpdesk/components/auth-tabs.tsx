@@ -2,8 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { useSearchParams } from "next/navigation";
-
 import type { Role } from "@/lib/helpdesk/demoData";
 import { useDepartmentsQuery } from "@/services/departments/hooks";
 import { useForgotPasswordMutation } from "@/services/auth/hooks";
@@ -11,10 +9,12 @@ import { useForgotPasswordMutation } from "@/services/auth/hooks";
 import { AuthCard } from "./auth-card";
 
 export function AuthTabs({
+  initialRole,
   onSubmit,
   error,
   onSuccessContinue,
 }: {
+  initialRole?: Exclude<Role, "admin">;
   onSubmit: (data: {
     intent: "login" | "signup";
     role: Exclude<Role, "admin">;
@@ -26,8 +26,7 @@ export function AuthTabs({
   error: string | null;
   onSuccessContinue?: () => void;
 }) {
-  const searchParams = useSearchParams();
-  const [role, setRole] = useState<Exclude<Role, "admin">>("user");
+  const [role, setRole] = useState<Exclude<Role, "admin">>(initialRole ?? "user");
   const [intent, setIntent] = useState<"login" | "signup">("login");
   const [name, setName] = useState("");
   const [department, setDepartment] = useState("");
@@ -45,11 +44,8 @@ export function AuthTabs({
   const departmentsQuery = useDepartmentsQuery({ enabled: intent === "signup" && role === "agent" });
 
   useEffect(() => {
-    const roleParam = searchParams.get("role");
-    if (roleParam === "user" || roleParam === "agent") {
-      setRole(roleParam);
-    }
-  }, [searchParams]);
+    if (initialRole) setRole(initialRole);
+  }, [initialRole]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
