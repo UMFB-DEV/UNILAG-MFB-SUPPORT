@@ -287,6 +287,10 @@ export async function createTicketCommentAction({
     }),
   });
 
+  if (res.status === 204) {
+    return { success: true };
+  }
+
   const raw = await parseJsonSafe(res);
 
   if (!res.ok) {
@@ -300,7 +304,20 @@ export async function createTicketCommentAction({
     throw new ApiRequestError({ status: res.status, message: msg, raw });
   }
 
-  return createTicketCommentResponseSchema.parse(raw);
+  if (!raw) {
+    return { success: true };
+  }
+
+  const parsed = createTicketCommentResponseSchema.safeParse(raw);
+  if (!parsed.success) {
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.error("[endpoint] POST /tickets/:id/comments parse error", { raw, error: parsed.error });
+    }
+    return { success: true };
+  }
+
+  return parsed.data;
 }
 
 export async function createTicketAction({
