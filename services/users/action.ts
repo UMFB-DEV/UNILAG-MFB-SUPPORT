@@ -13,7 +13,7 @@ import {
   type UsersResponse,
 } from "./schemas";
 
-const BASE_URL = "https://unilag-mfb-support-backend.onrender.com";
+import { BASE_URL } from "../base-url";
 
 class ApiRequestError extends Error {
   status: number;
@@ -32,6 +32,35 @@ async function parseJsonSafe(res: Response) {
     return await res.json();
   } catch {
     return null;
+  }
+}
+
+export async function deleteUserAction({ token, userId }: { token: string; userId: string }): Promise<void> {
+  if (process.env.NODE_ENV !== "production") {
+    // eslint-disable-next-line no-console
+    console.log("[admin endpoint] DELETE /users/:id", { userId });
+  }
+
+  const res = await fetch(`${BASE_URL}/users/${encodeURIComponent(userId)}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (res.status === 204) return;
+
+  const raw = await parseJsonSafe(res);
+  if (!res.ok) {
+    const msg =
+      raw && typeof raw === "object" && "message" in raw && typeof raw.message === "string"
+        ? raw.message
+        : `Request failed (${res.status})`;
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.error("[admin endpoint] DELETE /users/:id error", { status: res.status, message: msg, raw });
+    }
+    throw new ApiRequestError({ status: res.status, message: msg, raw });
   }
 }
 

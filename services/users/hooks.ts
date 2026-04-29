@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { createUserAction, getUsersAction, updateUserDepartmentAction, updateUserRoleAction } from "./action";
+import { createUserAction, deleteUserAction, getUsersAction, updateUserDepartmentAction, updateUserRoleAction } from "./action";
 
 export function useUsersQuery({
   token,
@@ -19,6 +19,19 @@ export function useUsersQuery({
     },
     enabled: enabled && Boolean(token),
     retry: false,
+  });
+}
+
+export function useDeleteUserMutation({ token }: { token: string | null }) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ userId }: { userId: string }) => {
+      if (!token) throw new Error("Missing token");
+      await deleteUserAction({ token, userId });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["users", token] });
+    },
   });
 }
 

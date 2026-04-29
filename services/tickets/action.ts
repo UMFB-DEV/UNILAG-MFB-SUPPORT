@@ -1,6 +1,6 @@
-import { createTicketCommentInputSchema, createTicketCommentResponseSchema, createTicketInputSchema, createTicketResponseSchema, takeTicketResponseSchema, ticketCommentsResponseSchema, updateTicketStatusInputSchema, updateTicketStatusResponseSchema, ticketsResponseSchema, type CreateTicketCommentInput, type CreateTicketCommentResponse, type CreateTicketInput, type CreateTicketResponse, type TakeTicketResponse, type TicketCommentsResponse, type TicketsResponse, type UpdateTicketStatusInput, type UpdateTicketStatusResponse } from "./schemas";
+import { assignTicketInputSchema, assignTicketResponseSchema, createTicketCommentInputSchema, createTicketCommentResponseSchema, createTicketInputSchema, createTicketResponseSchema, takeTicketResponseSchema, ticketCommentsResponseSchema, updateTicketStatusInputSchema, updateTicketStatusResponseSchema, ticketsResponseSchema, type AssignTicketInput, type AssignTicketResponse, type CreateTicketCommentInput, type CreateTicketCommentResponse, type CreateTicketInput, type CreateTicketResponse, type TakeTicketResponse, type TicketCommentsResponse, type TicketsResponse, type UpdateTicketStatusInput, type UpdateTicketStatusResponse } from "./schemas";
 
-const BASE_URL = "https://unilag-mfb-support-backend.onrender.com";
+import { BASE_URL } from "../base-url";
 
 type ApiError = {
   status: number;
@@ -27,6 +27,38 @@ async function parseJsonSafe(res: Response) {
   }
 }
 
+export async function deleteTicketAction({ token, ticketId }: { token: string; ticketId: string }): Promise<void> {
+  if (process.env.NODE_ENV !== "production") {
+    // eslint-disable-next-line no-console
+    console.log("[endpoint] DELETE /tickets/:id", { ticketId });
+  }
+
+  const res = await fetch(`${BASE_URL}/tickets/${encodeURIComponent(ticketId)}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (res.status === 204) return;
+
+  const raw = await parseJsonSafe(res);
+  if (!res.ok) {
+    const msg =
+      raw &&
+      typeof raw === "object" &&
+      "message" in raw &&
+      typeof raw.message === "string"
+        ? raw.message
+        : `Request failed (${res.status})`;
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.error("[endpoint] DELETE /tickets/:id error", { status: res.status, message: msg, raw });
+    }
+    throw new ApiRequestError({ status: res.status, message: msg, raw });
+  }
+}
+
 export async function getTicketsAction({
   token,
   params,
@@ -35,6 +67,8 @@ export async function getTicketsAction({
   params?: {
     status?: string;
     priority?: string;
+    createdBy?: string;
+    assignedTo?: string;
     page?: number;
     limit?: number;
     keyword?: string;
@@ -48,6 +82,8 @@ export async function getTicketsAction({
   if (params) {
     if (params.status) url.searchParams.set("status", params.status);
     if (params.priority) url.searchParams.set("priority", params.priority);
+    if (params.createdBy) url.searchParams.set("createdBy", params.createdBy);
+    if (params.assignedTo) url.searchParams.set("assignedTo", params.assignedTo);
     if (params.keyword) url.searchParams.set("keyword", params.keyword);
     if (params.page) url.searchParams.set("page", String(params.page));
     if (params.limit) url.searchParams.set("limit", String(params.limit));
@@ -148,6 +184,55 @@ export async function updateTicketStatusAction({
   }
 
   return updateTicketStatusResponseSchema.parse(raw);
+}
+
+export async function assignTicketAction({
+  token,
+  ticketId,
+  input,
+}: {
+  token: string;
+  ticketId: string;
+  input: AssignTicketInput;
+}): Promise<AssignTicketResponse> {
+  const payload = assignTicketInputSchema.parse(input);
+  if (process.env.NODE_ENV !== "production") {
+    // eslint-disable-next-line no-console
+    console.log("[endpoint] PATCH /tickets/:id/assign", { ticketId, payload });
+  }
+
+  const res = await fetch(`${BASE_URL}/tickets/${encodeURIComponent(ticketId)}/assign`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const raw = await parseJsonSafe(res);
+
+  if (!res.ok) {
+    const msg =
+      raw &&
+      typeof raw === "object" &&
+      "message" in raw &&
+      typeof raw.message === "string"
+        ? raw.message
+        : `Request failed (${res.status})`;
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.error("[endpoint] PATCH /tickets/:id/assign error", { status: res.status, message: msg, raw });
+    }
+    throw new ApiRequestError({ status: res.status, message: msg, raw });
+  }
+
+  const parsed = assignTicketResponseSchema.parse(raw);
+  if (process.env.NODE_ENV !== "production") {
+    // eslint-disable-next-line no-console
+    console.log("[tickets] PATCH /tickets/:id/assign response", parsed);
+  }
+  return parsed;
 }
 
 export async function getTicketCommentsAction({

@@ -1,6 +1,6 @@
 import { reportsSummaryResponseSchema, type ReportsSummaryResponse } from "./schemas";
 
-const BASE_URL = "https://unilag-mfb-support-backend.onrender.com";
+import { BASE_URL } from "../base-url";
 
 type ApiError = {
   status: number;

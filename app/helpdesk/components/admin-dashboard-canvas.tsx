@@ -36,7 +36,7 @@ export function AgentPerformanceTable({
   showViewAllAgentsButton,
 }: {
   tickets: Ticket[];
-  users: User[];
+  users: (User & { department?: string | null })[];
   limit?: number;
   onViewAllAgents?: () => void;
   showViewAllAgentsButton?: boolean;
@@ -66,7 +66,7 @@ export function AgentPerformanceTable({
           <thead>
             <tr className="bg-[#1A1A1A]/50 text-[10px] uppercase tracking-[0.16em] text-zinc-500">
               <th className="px-6 py-4">Specialist</th>
-              <th className="px-6 py-4">Status</th>
+              <th className="px-6 py-4">Department</th>
               <th className="px-6 py-4 text-center">Active</th>
               <th className="px-6 py-4 text-center">Resolved</th>
               <th className="px-6 py-4 text-right">Avg Response</th>
@@ -101,12 +101,7 @@ export function AgentPerformanceTable({
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                      <span className="text-xs text-zinc-400">Online</span>
-                    </div>
-                  </td>
+                  <td className="px-6 py-4 text-zinc-400">{a.department ?? "—"}</td>
                   <td className="px-6 py-4 text-center text-zinc-300">{active}</td>
                   <td className="px-6 py-4 text-center text-zinc-300">{resolved}</td>
                   <td className="px-6 py-4 text-right text-zinc-100">{avg}m</td>
@@ -127,6 +122,7 @@ export function AdminDashboardCanvas({
   averageResolutionHours,
   closedTickets,
   onViewAllAgents,
+  loading,
 }: {
   stats: Stats;
   tickets: Ticket[];
@@ -134,7 +130,9 @@ export function AdminDashboardCanvas({
   averageResolutionHours?: number | null;
   closedTickets: number;
   onViewAllAgents?: () => void;
+  loading?: boolean;
 }) {
+  const currentYear = new Date().getFullYear();
   const resolvedToday = tickets.filter(
     (t) =>
       t.resolvedAt &&
@@ -168,59 +166,62 @@ export function AdminDashboardCanvas({
   return (
     <div className="space-y-6">
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricBlock label="Total Tickets" value={stats.total} delta="—" icon="article" />
-        <MetricBlock label="Open Tickets" value={stats.open} delta="—" icon="pending" />
-        <MetricBlock label="Closed Tickets" value={closedTickets} delta="—" icon="check_circle" />
+        <MetricBlock label="Total Tickets" value={stats.total} delta="—" icon="article" loading={loading} />
+        <MetricBlock label="Open Tickets" value={stats.open} delta="—" icon="pending" loading={loading} />
+        <MetricBlock label="Closed Tickets" value={closedTickets} delta="—" icon="check_circle" loading={loading} />
         <MetricBlock
           label="Avg Resolution Time"
           value={avgResolution === null || avgResolution === undefined ? "—" : `${avgResolution}h`}
           delta="—"
           icon="timer"
+          loading={loading}
         />
       </section>
 
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <div className="rounded-xl border border-[#1F1F21] bg-[#111111] p-6 xl:col-span-2">
-          <div className="mb-6 flex items-center justify-between">
-            <h4 className="text-lg font-medium text-zinc-100">Tickets Activity</h4>
-            <span className="text-zinc-500">⋯</span>
-          </div>
-          <div className="flex h-64 items-end gap-2">
-            {activityHeights.map((h, idx) => (
-              <div
-                key={idx}
-                className={`flex-1 rounded-t-sm ${
-                  h >= 85
-                    ? "border-t-2 border-[#D4A373] bg-gradient-to-t from-[#D4A373]/40 to-[#D4A373]/10"
-                    : "bg-gradient-to-t from-[#D4A373]/20 to-[#D4A373]/5"
-                }`}
-                style={{ height: `${h}%` }}
-              />
-            ))}
-          </div>
-        </div>
-        <div className="flex flex-col rounded-xl border border-[#1F1F21] bg-[#111111] p-6">
-          <div className="mb-6">
-            <h4 className="text-lg font-medium text-zinc-100">Priority Level</h4>
-            <p className="mt-1 text-xs text-zinc-500">
-              Current open ticket distribution
-            </p>
-          </div>
-          <ProgressRow label="High" value={highPct} bar="bg-[#D4A373]" />
-          <ProgressRow label="Medium" value={mediumPct} bar="bg-cyan-400" />
-          <ProgressRow label="Low" value={lowPct} bar="bg-zinc-500" />
-        </div>
-      </section>
+      {loading ? null : (
+        <>
+          <section className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+            <div className="rounded-xl border border-[#1F1F21] bg-[#111111] p-6 xl:col-span-2">
+              <div className="mb-6 flex items-center justify-between">
+                <h4 className="text-lg font-medium text-zinc-100">Tickets Activity</h4>
+                <span className="text-zinc-500">⋯</span>
+              </div>
+              <div className="flex h-64 items-end gap-2">
+                {activityHeights.map((h, idx) => (
+                  <div
+                    key={idx}
+                    className={`flex-1 rounded-t-sm ${
+                      h >= 85
+                        ? "border-t-2 border-[#D4A373] bg-gradient-to-t from-[#D4A373]/40 to-[#D4A373]/10"
+                        : "bg-gradient-to-t from-[#D4A373]/20 to-[#D4A373]/5"
+                    }`}
+                    style={{ height: `${h}%` }}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-col rounded-xl border border-[#1F1F21] bg-[#111111] p-6">
+              <div className="mb-6">
+                <h4 className="text-lg font-medium text-zinc-100">Priority Level</h4>
+                <p className="mt-1 text-xs text-zinc-500">Current open ticket distribution</p>
+              </div>
+              <ProgressRow label="High" value={highPct} bar="bg-[#D4A373]" />
+              <ProgressRow label="Medium" value={mediumPct} bar="bg-cyan-400" />
+              <ProgressRow label="Low" value={lowPct} bar="bg-zinc-500" />
+            </div>
+          </section>
 
-      <AgentPerformanceTable tickets={tickets} users={users} limit={5} onViewAllAgents={onViewAllAgents} showViewAllAgentsButton />
+          <AgentPerformanceTable tickets={tickets} users={users} limit={5} onViewAllAgents={onViewAllAgents} showViewAllAgentsButton />
 
-      <footer className="flex flex-wrap items-center justify-between border-t border-[#1F1F21] px-2 py-4 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-600">
-        <div className="flex gap-6">
-          <span>System Health: Optimal</span>
-          <span>Server: unilag-mfb-support</span>
-        </div>
-        <span>© 2024 unilag-mfb-support</span>
-      </footer>
+          <footer className="flex flex-wrap items-center justify-between border-t border-[#1F1F21] px-2 py-4 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-600">
+            <div className="flex gap-6">
+              <span>System Health: Optimal</span>
+              <span>Server: unilag-mfb-support</span>
+            </div>
+            <span>© {currentYear} unilag-mfb-support</span>
+          </footer>
+        </>
+      )}
     </div>
   );
 }
@@ -230,11 +231,13 @@ function MetricBlock({
   value,
   delta,
   icon,
+  loading,
 }: {
   label: string;
   value: string | number;
   delta: string;
   icon: string;
+  loading?: boolean;
 }) {
   const iconSvg =
     icon === "article" ? (
@@ -256,16 +259,24 @@ function MetricBlock({
     );
 
   return (
-    <div className="space-y-4 rounded-xl border border-[#1F1F21] bg-[#111111] p-6">
+    <div className={`space-y-4 rounded-xl border border-[#1F1F21] bg-[#111111] p-6 ${loading ? "animate-pulse" : ""}`}>
       <div className="flex items-start justify-between">
-        <span className="rounded-lg bg-[#D4A373]/10 p-2 text-[#D4A373]">{iconSvg}</span>
-        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
-          {delta}
-        </span>
+        <span className={`rounded-lg p-2 ${loading ? "bg-zinc-800/70 text-zinc-700" : "bg-[#D4A373]/10 text-[#D4A373]"}`}>{iconSvg}</span>
+        {loading ? (
+          <span className="h-4 w-10 rounded-full bg-zinc-800/70" />
+        ) : (
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+            {delta}
+          </span>
+        )}
       </div>
       <div>
         <p className="text-xs uppercase tracking-[0.16em] text-zinc-500">{label}</p>
-        <h3 className="mt-1 text-3xl font-bold text-zinc-100">{value}</h3>
+        {loading ? (
+          <div className="mt-2 h-8 w-24 rounded bg-zinc-800/70" />
+        ) : (
+          <h3 className="mt-1 text-3xl font-bold text-zinc-100">{value}</h3>
+        )}
       </div>
     </div>
   );

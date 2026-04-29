@@ -92,7 +92,7 @@ export function ObsidianShell({
     <div className="min-h-screen bg-[#0B0B0C] text-zinc-100">
       <aside className="fixed left-0 top-0 hidden h-full w-64 border-r border-[#1F1F21] bg-[#111111] p-4 md:flex md:flex-col">
         <div className="mb-10 px-2">
-          <h1 className="text-lg font-bold tracking-widest text-[#D4A373]">unilag-support</h1>
+          <h1 className="text-lg font-bold tracking-widest text-[#D4A373]">UNILAG-MFB-SUPPORT</h1>
           <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-zinc-500">{roleLabel}</p>
         </div>
         <nav className="space-y-1">

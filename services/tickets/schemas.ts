@@ -70,6 +70,26 @@ export const updateTicketStatusResponseSchema = z.object({
 
 export type UpdateTicketStatusResponse = z.infer<typeof updateTicketStatusResponseSchema>;
 
+export const assignTicketInputSchema = z.object({
+  assignedToId: z.string(),
+});
+
+export type AssignTicketInput = z.infer<typeof assignTicketInputSchema>;
+
+export const assignTicketResponseSchema = z.object({
+  success: z.boolean(),
+  message: z.string().optional(),
+  data: z
+    .object({
+      id: z.string(),
+      assignedToId: z.string().optional().nullable(),
+      assignedTo: ticketUserSchema.optional().nullable(),
+    })
+    .optional(),
+});
+
+export type AssignTicketResponse = z.infer<typeof assignTicketResponseSchema>;
+
 export const ticketCommentSchema = z.object({
   id: z.string(),
   message: z.string(),

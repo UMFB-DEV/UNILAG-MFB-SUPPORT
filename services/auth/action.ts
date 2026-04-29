@@ -21,7 +21,7 @@ import {
   type UpdateProfileResponse,
 } from "./schemas";
 
-const BASE_URL = "https://unilag-mfb-support-backend.onrender.com";
+import { BASE_URL } from "../base-url";
 
 const DEBUG_AUTH = process.env.NODE_ENV !== "production";
 

@@ -3,15 +3,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  assignTicketAction,
   createTicketAction,
   createTicketCommentAction,
+  deleteTicketAction,
   getDepartmentTicketsAction,
   getTicketCommentsAction,
   getTicketsAction,
   takeTicketAction,
   updateTicketStatusAction,
 } from "./action";
-import type { CreateTicketCommentInput, CreateTicketInput, UpdateTicketStatusInput } from "./schemas";
+import type { AssignTicketInput, CreateTicketCommentInput, CreateTicketInput, UpdateTicketStatusInput } from "./schemas";
 
 export function useTicketsQuery({
   token,
@@ -22,6 +24,8 @@ export function useTicketsQuery({
   params?: {
     status?: string;
     priority?: string;
+    createdBy?: string;
+    assignedTo?: string;
     page?: number;
     limit?: number;
     keyword?: string;
@@ -36,6 +40,32 @@ export function useTicketsQuery({
     },
     enabled: enabled && Boolean(token),
     retry: false,
+  });
+}
+
+export function useDeleteTicketMutation({ token }: { token: string | null }) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ ticketId }: { ticketId: string }) => {
+      if (!token) throw new Error("Missing token");
+      await deleteTicketAction({ token, ticketId });
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["tickets"] });
+    },
+  });
+}
+
+export function useAssignTicketMutation({ token }: { token: string | null }) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ ticketId, input }: { ticketId: string; input: AssignTicketInput }) => {
+      if (!token) throw new Error("Missing token");
+      return assignTicketAction({ token, ticketId, input });
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["tickets"] });
+    },
   });
 }
 

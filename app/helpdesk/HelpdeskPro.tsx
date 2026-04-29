@@ -22,6 +22,8 @@ import { TicketTable } from "./components/ticket-table";
 import { useAuthStore } from "@/stores/authStore";
 import {
   useCreateTicketMutation,
+  useAssignTicketMutation,
+  useDeleteTicketMutation,
   useDepartmentTicketsQuery,
   useTakeTicketMutation,
   useTicketsQuery,
@@ -29,7 +31,7 @@ import {
 } from "@/services/tickets/hooks";
 import { useDepartmentsQuery } from "@/services/departments/hooks";
 import { useForgotPasswordMutation, useUpdateProfileMutation } from "@/services/auth/hooks";
-import { useCreateUserMutation, useUpdateUserDepartmentMutation, useUpdateUserRoleMutation, useUsersQuery } from "@/services/users/hooks";
+import { useCreateUserMutation, useDeleteUserMutation, useUpdateUserDepartmentMutation, useUpdateUserRoleMutation, useUsersQuery } from "@/services/users/hooks";
 import { useReportsSummaryQuery } from "@/services/reports/hooks";
 
 const ROLE_LABEL: Record<Role, string> = {
@@ -49,6 +51,8 @@ export function HelpdeskPro({
 }: {
   initialUser: { id: number; email: string; name: string; role: Role };
 }) {
+  type AdminTableUser = User & { department?: string | null };
+
   const clearAuth = useAuthStore((s) => s.clearAuth);
   const setAuth = useAuthStore((s) => s.setAuth);
   const token = useAuthStore((s) => s.token);
@@ -73,12 +77,31 @@ export function HelpdeskPro({
     to: "user" | "agent" | "admin";
   } | null>(null);
 
+  const [userDelete, setUserDelete] = useState<{
+    userId: string;
+    name: string;
+    email: string;
+  } | null>(null);
+
+  const [userDeleteTickets, setUserDeleteTickets] = useState<{
+    userId: string;
+    name: string;
+    email: string;
+  } | null>(null);
+
+  const [userDeleteTicketsError, setUserDeleteTicketsError] = useState<string | null>(null);
+
   const [deptChange, setDeptChange] = useState<{
     userId: string;
     name: string;
     email: string;
     from: string | null;
     to: string | null;
+  } | null>(null);
+
+  const [ticketDelete, setTicketDelete] = useState<{
+    ticketId: string;
+    title: string;
   } | null>(null);
 
   const effectiveRole = (apiUser?.role as Role | undefined) ?? initialUser.role;
@@ -116,7 +139,7 @@ export function HelpdeskPro({
     enabled:
       Boolean(token) &&
       effectiveRole === "admin" &&
-      (view === "dashboard" || view === "agents" || view === "users"),
+      (view === "dashboard" || view === "agents" || view === "users" || view === "tickets"),
   });
   const adminTicketsQuery = useTicketsQuery({
     token,
@@ -124,9 +147,44 @@ export function HelpdeskPro({
     params: { page: 1, limit: 100 },
   });
 
+  const adminUserTicketsQuery = useTicketsQuery({
+    token,
+    enabled: Boolean(token) && effectiveRole === "admin" && view === "users",
+    params: { page: 1, limit: 100 },
+  });
+
+  const userDeleteTicketsQuery = useTicketsQuery({
+    token,
+    enabled: Boolean(token) && effectiveRole === "admin" && view === "users" && Boolean(userDeleteTickets?.userId),
+    params: {
+      page: 1,
+      limit: 100,
+      createdBy: userDeleteTickets?.userId,
+    },
+  });
+
+  const userDeleteOwnedTickets = useMemo(() => {
+    if (!userDeleteTickets) return [];
+    const rawTickets = userDeleteTicketsQuery.data?.data ?? adminUserTicketsQuery.data?.data ?? [];
+    return rawTickets
+      .filter((t) => {
+        const createdById = t.createdBy?.id;
+        const createdByEmail = t.createdBy?.email;
+        return createdById === userDeleteTickets.userId || createdByEmail === userDeleteTickets.email;
+      })
+      .map((t) => ({
+        id: t.id,
+        title: t.title,
+        category: t.category,
+        status: t.status,
+        priority: t.priority,
+      }));
+  }, [adminUserTicketsQuery.data?.data, userDeleteTickets, userDeleteTicketsQuery.data?.data]);
+
   const updateUserRoleMutation = useUpdateUserRoleMutation({ token });
   const updateUserDepartmentMutation = useUpdateUserDepartmentMutation({ token });
   const createUserMutation = useCreateUserMutation({ token });
+  const deleteUserMutation = useDeleteUserMutation({ token });
 
   const [newAgentEmail, setNewAgentEmail] = useState("");
   const [newAgentPassword, setNewAgentPassword] = useState("");
@@ -210,6 +268,12 @@ export function HelpdeskPro({
   const takeTicketMutation = useTakeTicketMutation({ token });
   const [takeTicketError, setTakeTicketError] = useState<string | null>(null);
 
+  const assignTicketMutation = useAssignTicketMutation({ token });
+  const [assignTicketId, setAssignTicketId] = useState<string | null>(null);
+
+  const deleteTicketMutation = useDeleteTicketMutation({ token });
+  const [deleteTicketId, setDeleteTicketId] = useState<string | null>(null);
+
   const updateTicketStatusMutation = useUpdateTicketStatusMutation({ token });
   const [updateTicketStatusError, setUpdateTicketStatusError] = useState<string | null>(null);
 
@@ -240,11 +304,12 @@ export function HelpdeskPro({
       const key = email.toLowerCase();
       if (byEmail.has(key)) return;
       const fallbackName = email.split("@")[0] || email;
+      const displayName = name && !name.includes("@") ? name : fallbackName;
       byEmail.set(key, {
         id: emailToId(key),
         email,
         role,
-        name: name ?? fallbackName,
+        name: displayName,
         color: role === "admin" ? "#4F46E5" : role === "agent" ? "#10B981" : "#EF4444",
       });
     }
@@ -314,6 +379,19 @@ export function HelpdeskPro({
         comments: [],
       } satisfies Ticket;
     });
+  }, [ticketsQuery.data]);
+
+  const agentNameByApiId = useMemo(() => {
+    const map = new Map<string, string>();
+    const apiTickets = ticketsQuery.data?.data ?? [];
+    for (const t of apiTickets) {
+      const id = t.assignedTo?.id;
+      const name = t.assignedTo?.name;
+      if (id && typeof name === "string" && name.trim()) {
+        map.set(id, name);
+      }
+    }
+    return map;
   }, [ticketsQuery.data]);
 
   const adminMappedTickets = useMemo(() => {
@@ -495,17 +573,20 @@ export function HelpdeskPro({
     };
   }, [adminStats, adminMappedTickets, reportsSummaryQuery.data?.data]);
 
-  const adminUsers = useMemo(() => {
+  const adminUsers = useMemo((): AdminTableUser[] => {
     const raw = adminUsersQuery.data?.data ?? [];
     return raw.map((u) => {
       const role = (u.role === "admin" || u.role === "agent" || u.role === "user") ? u.role : "user";
+      const fallbackName = u.email.split("@")[0] || u.email;
+      const displayName = u.name && !u.name.includes("@") ? u.name : fallbackName;
       return {
         id: emailToId(u.email.toLowerCase()),
-        name: u.name ?? u.email.split("@")[0],
+        name: displayName,
         email: u.email,
         role,
+        department: u.department ?? null,
         color: role === "admin" ? "#4F46E5" : role === "agent" ? "#10B981" : "#EF4444",
-      } satisfies User;
+      };
     });
   }, [adminUsersQuery.data]);
 
@@ -514,10 +595,46 @@ export function HelpdeskPro({
     [adminUsers],
   );
 
+  const adminTicketUsersForDisplay = useMemo(() => {
+    // apiUsers are derived from the tickets payload and include assignedTo.name when present.
+    // Put them last so they win if there are id collisions.
+    return [...adminUsers, ...apiUsers];
+  }, [adminUsers, apiUsers]);
+
   const adminAgentsRaw = useMemo(
     () => (adminUsersQuery.data?.data ?? []).filter((u) => u.role === "agent"),
     [adminUsersQuery.data?.data],
   );
+
+  const adminAssignOptionsByTicketId = useMemo(() => {
+    const map: Record<string, { id: string; name: string; email: string }[]> = {};
+    for (const t of adminMappedTickets) {
+      if (t.assignedTo) continue;
+      map[t.id] = adminAgentsRaw
+        .filter((a) => !a.department || a.department === t.category)
+        .map((a) => ({
+          id: a.id,
+          name: agentNameByApiId.get(a.id) ?? (a.name?.trim() ? a.name : a.email),
+          email: a.email,
+        }));
+    }
+    return map;
+  }, [adminAgentsRaw, adminMappedTickets, agentNameByApiId]);
+
+  const adminTicketsAssignOptionsByTicketId = useMemo(() => {
+    const map: Record<string, { id: string; name: string; email: string }[]> = {};
+    for (const t of mappedApiTickets) {
+      if (t.assignedTo) continue;
+      map[t.id] = adminAgentsRaw
+        .filter((a) => !a.department || a.department === t.category)
+        .map((a) => ({
+          id: a.id,
+          name: agentNameByApiId.get(a.id) ?? (a.name?.trim() ? a.name : a.email),
+          email: a.email,
+        }));
+    }
+    return map;
+  }, [adminAgentsRaw, mappedApiTickets, agentNameByApiId]);
 
   const adminUsersRawFiltered = useMemo(() => {
     const raw = adminUsersQuery.data?.data ?? [];
@@ -584,6 +701,72 @@ export function HelpdeskPro({
         return;
       }
       setCreateTicketError("Something went wrong. Please try again.");
+    }
+  }
+
+  async function deleteTicket(ticketId: string) {
+    if (deleteTicketMutation.isPending) return;
+    setDeleteTicketId(ticketId);
+    try {
+      await deleteTicketMutation.mutateAsync({ ticketId });
+      setTicketDelete(null);
+    } catch {
+      // noop
+    } finally {
+      setDeleteTicketId(null);
+    }
+  }
+
+  async function deleteUser(userId: string) {
+    if (deleteUserMutation.isPending) return;
+    try {
+      await deleteUserMutation.mutateAsync({ userId });
+      setUserDelete(null);
+      setUserDeleteTickets(null);
+      setUserDeleteTicketsError(null);
+    } catch (e) {
+      const errObj = e && typeof e === "object" ? (e as { status?: unknown; message?: unknown; raw?: unknown }) : null;
+      const status = errObj && typeof errObj.status === "number" ? errObj.status : null;
+      const message = errObj && typeof errObj.message === "string" ? errObj.message : null;
+      const rawMessage =
+        errObj &&
+        errObj.raw &&
+        typeof errObj.raw === "object" &&
+        "message" in errObj.raw &&
+        typeof (errObj.raw as { message?: unknown }).message === "string"
+          ? (errObj.raw as { message: string }).message
+          : null;
+      const combinedMessage = rawMessage ?? message;
+
+      const shouldShowTicketsModal =
+        Boolean(combinedMessage && combinedMessage.toLowerCase().includes("ticket")) &&
+        (status === 400 || status === 409 || status === 500);
+
+      const source = userDeleteTickets ?? userDelete;
+      if (shouldShowTicketsModal && source) {
+        const { userId: userIdForTickets, email: emailForTickets, name: nameForTickets } = source;
+
+        deleteUserMutation.reset();
+        setUserDeleteTicketsError(combinedMessage ?? "Cannot delete user because they have tickets.");
+        setUserDeleteTickets({
+          userId: userIdForTickets,
+          name: nameForTickets,
+          email: emailForTickets,
+        });
+        setUserDelete(null);
+      }
+    }
+  }
+
+  async function deleteUserOwnedTicket(ticketId: string) {
+    if (deleteTicketMutation.isPending) return;
+    setDeleteTicketId(ticketId);
+    try {
+      await deleteTicketMutation.mutateAsync({ ticketId });
+    } catch {
+      // noop
+    } finally {
+      setDeleteTicketId(null);
     }
   }
 
@@ -692,6 +875,21 @@ export function HelpdeskPro({
     window.location.href = "/dashboard/login";
   }
 
+  async function assignTicket(ticketId: string, assignedToId: string) {
+    if (assignTicketMutation.isPending) return;
+    setAssignTicketId(ticketId);
+    try {
+      await assignTicketMutation.mutateAsync({
+        ticketId,
+        input: { assignedToId },
+      });
+    } catch {
+      // noop
+    } finally {
+      setAssignTicketId(null);
+    }
+  }
+
   return (
     <ObsidianShell
       name={currentUser.name}
@@ -750,9 +948,15 @@ export function HelpdeskPro({
             Failed to load admin dashboard.
           </div>
         ) : reportsSummaryQuery.isLoading || adminUsersQuery.isLoading ? (
-          <div className="rounded-xl border border-[#1F1F21] bg-[#0B0B0C] p-6 text-sm text-zinc-300">
-            Loading dashboard...
-          </div>
+          <AdminDashboardCanvas
+            stats={{ total: 0, open: 0, progress: 0, resolved: 0, closed: 0 }}
+            tickets={[]}
+            users={[]}
+            averageResolutionHours={null}
+            closedTickets={0}
+            onViewAllAgents={() => setView("agents")}
+            loading
+          />
         ) : (
           <div className="space-y-4">
             {adminTicketsQuery.isError ? (
@@ -953,6 +1157,133 @@ export function HelpdeskPro({
         </div>
       )}
 
+      {view === "users" && currentUser.role === "admin" && userDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-[#1F1F21] bg-[#111111] p-6">
+            <h3 className="text-lg font-semibold text-zinc-100">Confirm delete user</h3>
+            <p className="mt-2 text-sm text-zinc-400">
+              Delete <span className="font-semibold text-zinc-200">{userDelete.name}</span> ({userDelete.email})?
+              This action cannot be undone.
+            </p>
+
+            {deleteUserMutation.isError ? (
+              <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                {deleteUserMutation.error instanceof Error
+                  ? deleteUserMutation.error.message
+                  : "Failed to delete user"}
+              </div>
+            ) : null}
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                className="rounded-lg border border-[#2A2A2C] bg-[#111111] px-4 py-2 text-sm text-zinc-200 disabled:opacity-50"
+                disabled={deleteUserMutation.isPending}
+                onClick={() => {
+                  deleteUserMutation.reset();
+                  setUserDelete(null);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                disabled={deleteUserMutation.isPending}
+                onClick={() => deleteUser(userDelete.userId)}
+              >
+                {deleteUserMutation.isPending ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {view === "users" && currentUser.role === "admin" && userDeleteTickets && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-2xl rounded-2xl border border-[#1F1F21] bg-[#111111] p-6">
+            <h3 className="text-lg font-semibold text-zinc-100">User has tickets</h3>
+            <p className="mt-2 text-sm text-zinc-400">
+              <span className="font-semibold text-zinc-200">{userDeleteTickets.name}</span> ({userDeleteTickets.email})
+              has tickets. Delete them first, then delete the user.
+            </p>
+
+            {userDeleteTicketsError ? (
+              <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                {userDeleteTicketsError}
+              </div>
+            ) : null}
+
+            {adminUserTicketsQuery.isError && userDeleteTicketsQuery.isError ? (
+              <div className="mt-4 text-sm text-zinc-300">Failed to load tickets for this user.</div>
+            ) : adminUserTicketsQuery.isLoading || userDeleteTicketsQuery.isLoading ? (
+              <div className="mt-4 text-sm text-zinc-300">Loading tickets...</div>
+            ) : userDeleteOwnedTickets.length === 0 ? (
+              <div className="mt-4 text-sm text-zinc-300">No tickets found for this user.</div>
+            ) : (
+              <div className="mt-4 overflow-x-auto">
+                <table className="w-full min-w-[680px] text-left text-sm">
+                  <thead className="border-b border-[#1F1F21] text-xs text-zinc-500">
+                    <tr>
+                      <th className="px-4 py-3">Ticket</th>
+                      <th className="px-4 py-3">Department</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Priority</th>
+                      <th className="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#1F1F21]">
+                    {userDeleteOwnedTickets.map((t) => (
+                      <tr key={t.id}>
+                        <td className="px-4 py-3">
+                          <div className="text-zinc-200">{t.title}</div>
+                          <div className="mt-1 font-mono text-[11px] text-zinc-500">{t.id}</div>
+                        </td>
+                        <td className="px-4 py-3 text-zinc-300">{t.category}</td>
+                        <td className="px-4 py-3 text-zinc-300">{t.status}</td>
+                        <td className="px-4 py-3 text-zinc-300">{t.priority}</td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            type="button"
+                            className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-200 hover:bg-red-500/20 disabled:opacity-50"
+                            disabled={deleteTicketId === t.id}
+                            onClick={() => deleteUserOwnedTicket(t.id)}
+                          >
+                            {deleteTicketId === t.id ? "Deleting..." : "Delete"}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                className="rounded-lg border border-[#2A2A2C] bg-[#111111] px-4 py-2 text-sm text-zinc-200"
+                onClick={() => {
+                  deleteTicketMutation.reset();
+                  setUserDeleteTickets(null);
+                  setUserDeleteTicketsError(null);
+                }}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                className="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                disabled={userDeleteOwnedTickets.length > 0 || deleteUserMutation.isPending}
+                onClick={() => deleteUser(userDeleteTickets.userId)}
+              >
+                {deleteUserMutation.isPending ? "Deleting..." : "Delete user"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {view === "users" && currentUser.role === "admin" && deptChange && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
           <div className="w-full max-w-md rounded-2xl border border-[#1F1F21] bg-[#111111] p-6">
@@ -1027,6 +1358,7 @@ export function HelpdeskPro({
                     <th className="px-4 py-3">Role</th>
                     <th className="px-4 py-3">Department</th>
                     <th className="px-4 py-3">Created</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#1F1F21]">
@@ -1084,6 +1416,22 @@ export function HelpdeskPro({
                         </select>
                       </td>
                       <td className="px-4 py-3 text-zinc-400">{u.createdAt ?? "—"}</td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          type="button"
+                          className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-200 hover:bg-red-500/20"
+                          onClick={() => {
+                            deleteUserMutation.reset();
+                            setUserDelete({
+                              userId: u.id,
+                              name: u.name,
+                              email: u.email,
+                            });
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1205,7 +1553,71 @@ export function HelpdeskPro({
             </div>
           ) : (
             <div className="space-y-4">
-              <TicketTable tickets={visibleTickets} users={apiUsers} onOpen={setSelectedTicketId} />
+              {currentUser.role === "admin" && view === "tickets" && ticketDelete ? (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+                  <div className="w-full max-w-md rounded-2xl border border-[#1F1F21] bg-[#111111] p-6">
+                    <h3 className="text-lg font-semibold text-zinc-100">Confirm delete ticket</h3>
+                    <p className="mt-2 text-sm text-zinc-400">
+                      Delete <span className="font-semibold text-zinc-200">{ticketDelete.title}</span>?
+                      This action cannot be undone.
+                    </p>
+
+                    {deleteTicketMutation.isError ? (
+                      <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                        {deleteTicketMutation.error instanceof Error
+                          ? deleteTicketMutation.error.message
+                          : "Failed to delete ticket"}
+                      </div>
+                    ) : null}
+
+                    <div className="mt-6 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        className="rounded-lg border border-[#2A2A2C] bg-[#111111] px-4 py-2 text-sm text-zinc-200 disabled:opacity-50"
+                        disabled={deleteTicketMutation.isPending}
+                        onClick={() => {
+                          deleteTicketMutation.reset();
+                          setTicketDelete(null);
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                        disabled={deleteTicketMutation.isPending || deleteTicketId === ticketDelete.ticketId}
+                        onClick={() => deleteTicket(ticketDelete.ticketId)}
+                      >
+                        {deleteTicketMutation.isPending || deleteTicketId === ticketDelete.ticketId
+                          ? "Deleting..."
+                          : "Delete"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              <TicketTable
+                tickets={visibleTickets}
+                users={currentUser.role === "admin" && view === "tickets" ? adminTicketUsersForDisplay : apiUsers}
+                onOpen={setSelectedTicketId}
+                canAssign={currentUser.role === "admin" && view === "tickets"}
+                assignOptionsByTicketId={currentUser.role === "admin" && view === "tickets" ? adminTicketsAssignOptionsByTicketId : undefined}
+                onAssign={currentUser.role === "admin" && view === "tickets" ? assignTicket : undefined}
+                assigningTicketId={currentUser.role === "admin" && view === "tickets" ? assignTicketId : undefined}
+                onDelete={
+                  currentUser.role === "admin" && view === "tickets"
+                    ? (ticketId) => {
+                        const t = visibleTickets.find((x) => x.id === ticketId);
+                        if (!t) return;
+                        deleteTicketMutation.reset();
+                        setTicketDelete({ ticketId: t.id, title: t.title });
+                      }
+                    : undefined
+                }
+                deletingTicketId={deleteTicketId}
+              />
+
               {ticketsQuery.data?.meta?.totalPages && ticketsQuery.data.meta.totalPages > 1 ? (
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="text-xs text-zinc-500">

@@ -114,7 +114,7 @@ export function AuthTabs({
     <div className="min-h-screen bg-[#0B0B0C] px-6 py-12">
       <div className="mx-auto mb-10 max-w-md text-center">
         <h1 className="text-lg font-bold uppercase tracking-[0.18em] text-[#D4A373]">
-          unilag-support
+          UNILAG-MFB-SUPPORT
         </h1>
         <p className="mt-2 text-xs uppercase tracking-[0.18em] text-zinc-500">
           Secure Support Access
