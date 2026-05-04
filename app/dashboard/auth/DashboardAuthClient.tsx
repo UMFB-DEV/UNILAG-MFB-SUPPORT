@@ -22,6 +22,7 @@ export default function DashboardAuthClient({
   const router = useRouter();
   const setAuth = useAuthStore((s) => s.setAuth);
   const token = useAuthStore((s) => s.token);
+  const apiUser = useAuthStore((s) => s.user);
 
   const loginMutation = useLoginMutation();
   const registerMutation = useRegisterMutation();
@@ -31,8 +32,13 @@ export default function DashboardAuthClient({
   const [pendingPostSignupRedirect, setPendingPostSignupRedirect] = useState(false);
 
   useEffect(() => {
-    if (token && !pendingPostSignupRedirect) router.replace(nextPath);
-  }, [token, pendingPostSignupRedirect, nextPath, router]);
+    if (!token || pendingPostSignupRedirect) return;
+    if (apiUser?.role === "admin") {
+      router.replace("/dashboard");
+      return;
+    }
+    router.replace(nextPath);
+  }, [token, pendingPostSignupRedirect, nextPath, router, apiUser?.role]);
 
   const displayedError = useMemo(
     () => (queryError ? "Invalid details. Please try again." : localError),
@@ -73,7 +79,7 @@ export default function DashboardAuthClient({
             });
             if (!res.data) throw new Error("Missing auth data");
             setAuth({ token: res.data.token, user: res.data.user });
-            router.replace(nextPath);
+            router.replace(res.data.user.role === "admin" ? "/dashboard" : nextPath);
             return;
           }
 
