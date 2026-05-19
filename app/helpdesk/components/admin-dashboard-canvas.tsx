@@ -20,12 +20,36 @@ function responseMinutes(userId: number, tickets: Ticket[]) {
 }
 
 function avgResolutionHoursFromTickets(tickets: Ticket[]) {
-  const resolved = tickets.filter((t) => typeof t.resolvedAt === "number" && t.resolvedAt > 0);
+  const resolved = tickets.filter(
+    (t) => typeof t.resolvedAt === "number" && t.resolvedAt > 0,
+  );
   if (!resolved.length) return null;
   const avgMs =
-    resolved.reduce((sum, t) => sum + Math.max(1, (t.resolvedAt as number) - t.created), 0) /
-    resolved.length;
+    resolved.reduce(
+      (sum, t) => sum + Math.max(1, (t.resolvedAt as number) - t.created),
+      0,
+    ) / resolved.length;
   return Math.max(0.1, Math.round((avgMs / 3_600_000) * 10) / 10);
+}
+
+function avgResolutionMinutesFromTickets(tickets: Ticket[]) {
+  const resolved = tickets.filter(
+    (t) => typeof t.resolvedAt === "number" && t.resolvedAt > 0,
+  );
+  if (!resolved.length) return null;
+  const avgMs =
+    resolved.reduce(
+      (sum, t) => sum + Math.max(1, (t.resolvedAt as number) - t.created),
+      0,
+    ) / resolved.length;
+  return Math.max(1, Math.round(avgMs / 60_000));
+}
+
+function formatDurationMinutes(minutes: number) {
+  if (!Number.isFinite(minutes) || minutes <= 0) return "—";
+  if (minutes < 60) return `${Math.round(minutes)}m`;
+  const hours = Math.round((minutes / 60) * 10) / 10;
+  return `${hours}h`;
 }
 
 export function AgentPerformanceTable({
@@ -36,24 +60,32 @@ export function AgentPerformanceTable({
   showViewAllAgentsButton,
 }: {
   tickets: Ticket[];
-  users: (User & { department?: string | null })[];
+  users: (User & {
+    department?: string | null;
+    averageAssignedToResolvedMinutes?: number | null;
+  })[];
   limit?: number;
   onViewAllAgents?: () => void;
   showViewAllAgentsButton?: boolean;
 }) {
   const agents = users.filter((u) => u.role === "agent" || u.role === "admin");
-  const visibleAgents = typeof limit === "number" ? agents.slice(0, limit) : agents;
+  const visibleAgents =
+    typeof limit === "number" ? agents.slice(0, limit) : agents;
 
   return (
     <section className="overflow-hidden rounded-xl border border-[#1F1F21] bg-[#111111]">
       <div className="flex items-center justify-between border-b border-[#1F1F21] p-6">
         <div>
-          <h4 className="text-lg font-medium text-zinc-100">Agent Performance</h4>
-          <p className="mt-1 text-xs text-zinc-500">Archive specialists and current capacity</p>
+          <h4 className="text-lg font-medium text-zinc-100">
+            Agent Performance
+          </h4>
+          <p className="mt-1 text-xs text-zinc-500">
+            Archive specialists and current capacity
+          </p>
         </div>
         {showViewAllAgentsButton ? (
           <button
-            className="text-xs font-bold text-[#D4A373] hover:underline"
+            className="text-xs font-bold text-[#ACD23C] hover:underline"
             type="button"
             onClick={onViewAllAgents}
           >
@@ -75,12 +107,19 @@ export function AgentPerformanceTable({
           <tbody className="divide-y divide-[#1F1F21]">
             {visibleAgents.map((a) => {
               const active = tickets.filter(
-                (t) => t.assignedTo === a.id && (t.status === "Open" || t.status === "In Progress"),
+                (t) =>
+                  t.assignedTo === a.id &&
+                  (t.status === "Open" || t.status === "In Progress"),
               ).length;
               const resolved = tickets.filter(
-                (t) => t.assignedTo === a.id && (t.status === "Resolved" || t.status === "Closed"),
+                (t) =>
+                  t.assignedTo === a.id &&
+                  (t.status === "Resolved" || t.status === "Closed"),
               ).length;
-              const avg = responseMinutes(a.id, tickets);
+              const avgMinutes =
+                typeof a.averageAssignedToResolvedMinutes === "number"
+                  ? a.averageAssignedToResolvedMinutes
+                  : responseMinutes(a.id, tickets);
               return (
                 <tr key={a.id}>
                   <td className="px-6 py-4">
@@ -96,15 +135,29 @@ export function AgentPerformanceTable({
                           .slice(0, 2)}
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-zinc-200">{a.name}</p>
-                        <p className="text-[10px] text-zinc-500">{a.role === "admin" ? "Admin" : "Support Agent"}</p>
+                        <p className="text-sm font-semibold text-zinc-200">
+                          {a.name}
+                        </p>
+                        <p className="text-[10px] text-zinc-500">
+                          {a.role === "admin" ? "Admin" : "Support Agent"}
+                        </p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-zinc-400">{a.department ?? "—"}</td>
-                  <td className="px-6 py-4 text-center text-zinc-300">{active}</td>
-                  <td className="px-6 py-4 text-center text-zinc-300">{resolved}</td>
-                  <td className="px-6 py-4 text-right text-zinc-100">{avg}m</td>
+                  <td className="px-6 py-4 text-zinc-400">
+                    {a.department ?? "—"}
+                  </td>
+                  <td className="px-6 py-4 text-center text-zinc-300">
+                    {active}
+                  </td>
+                  <td className="px-6 py-4 text-center text-zinc-300">
+                    {resolved}
+                  </td>
+                  <td className="px-6 py-4 text-right text-zinc-100">
+                    {typeof avgMinutes === "number"
+                      ? formatDurationMinutes(avgMinutes)
+                      : "—"}
+                  </td>
                 </tr>
               );
             })}
@@ -119,7 +172,7 @@ export function AdminDashboardCanvas({
   stats,
   tickets,
   users,
-  averageResolutionHours,
+  averageResolutionMinutes,
   closedTickets,
   onViewAllAgents,
   loading,
@@ -127,7 +180,7 @@ export function AdminDashboardCanvas({
   stats: Stats;
   tickets: Ticket[];
   users: User[];
-  averageResolutionHours?: number | null;
+  averageResolutionMinutes?: number | null;
   closedTickets: number;
   onViewAllAgents?: () => void;
   loading?: boolean;
@@ -148,30 +201,82 @@ export function AdminDashboardCanvas({
   const mediumPct = Math.round((medium / totalPriorities) * 100);
   const lowPct = Math.max(0, 100 - highPct - mediumPct);
 
-  const avgResolution =
-    typeof averageResolutionHours === "number"
-      ? averageResolutionHours
-      : avgResolutionHoursFromTickets(tickets);
+  const avgResolutionMinutes =
+    typeof averageResolutionMinutes === "number"
+      ? averageResolutionMinutes
+      : avgResolutionMinutesFromTickets(tickets);
 
-  const now = Date.now();
   const day = 86_400_000;
-  const activityBuckets = Array.from({ length: 10 }).map((_, i) => {
-    const start = now - (9 - i) * day;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStart = today.getTime();
+
+  const activitySeries = Array.from({ length: 10 }).map((_, i) => {
+    const start = todayStart - (9 - i) * day;
     const end = start + day;
-    return tickets.filter((t) => t.created >= start && t.created < end).length;
+    const count = tickets.filter(
+      (t) => t.created >= start && t.created < end,
+    ).length;
+    const date = new Date(start);
+    const label = date.toLocaleDateString(undefined, { weekday: "short" });
+    const fullLabel = date.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+    });
+    return { start, end, count, label, fullLabel };
   });
+  const activityBuckets = activitySeries.map((s) => s.count);
   const maxBucket = Math.max(1, ...activityBuckets);
-  const activityHeights = activityBuckets.map((n) => Math.round((n / maxBucket) * 100));
+  const activityHeights = activityBuckets.map((n) =>
+    Math.round((n / maxBucket) * 100),
+  );
 
   return (
     <div className="space-y-6">
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricBlock label="Total Tickets" value={stats.total} delta="—" icon="article" loading={loading} />
-        <MetricBlock label="Open Tickets" value={stats.open} delta="—" icon="pending" loading={loading} />
-        <MetricBlock label="Closed Tickets" value={closedTickets} delta="—" icon="check_circle" loading={loading} />
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <MetricBlock
-          label="Avg Resolution Time"
-          value={avgResolution === null || avgResolution === undefined ? "—" : `${avgResolution}h`}
+          label="Total"
+          value={stats.total}
+          delta="—"
+          icon="article"
+          loading={loading}
+        />
+        <MetricBlock
+          label="Open"
+          value={stats.open}
+          delta="—"
+          icon="pending"
+          loading={loading}
+        />
+        <MetricBlock
+          label="In Progress"
+          value={stats.progress}
+          delta="—"
+          icon="pending"
+          loading={loading}
+        />
+        <MetricBlock
+          label="Resolved"
+          value={stats.resolved}
+          delta="—"
+          icon="check_circle"
+          loading={loading}
+        />
+        <MetricBlock
+          label="Closed"
+          value={closedTickets}
+          delta="—"
+          icon="check_circle"
+          loading={loading}
+        />
+        <MetricBlock
+          label="Avg Resolution"
+          value={
+            avgResolutionMinutes === null || avgResolutionMinutes === undefined
+              ? "—"
+              : formatDurationMinutes(avgResolutionMinutes)
+          }
           delta="—"
           icon="timer"
           loading={loading}
@@ -183,42 +288,72 @@ export function AdminDashboardCanvas({
           <section className="grid grid-cols-1 gap-4 xl:grid-cols-3">
             <div className="rounded-xl border border-[#1F1F21] bg-[#111111] p-6 xl:col-span-2">
               <div className="mb-6 flex items-center justify-between">
-                <h4 className="text-lg font-medium text-zinc-100">Tickets Activity</h4>
+                <h4 className="text-lg font-medium text-zinc-100">
+                  Tickets Activity
+                </h4>
                 <span className="text-zinc-500">⋯</span>
               </div>
               <div className="flex h-64 items-end gap-2">
-                {activityHeights.map((h, idx) => (
-                  <div
-                    key={idx}
-                    className={`flex-1 rounded-t-sm ${
-                      h >= 85
-                        ? "border-t-2 border-[#D4A373] bg-gradient-to-t from-[#D4A373]/40 to-[#D4A373]/10"
-                        : "bg-gradient-to-t from-[#D4A373]/20 to-[#D4A373]/5"
-                    }`}
-                    style={{ height: `${h}%` }}
-                  />
+                {activityHeights.map((h, idx) => {
+                  const s = activitySeries[idx];
+                  return (
+                    <div
+                      key={idx}
+                      title={`${s.fullLabel}: ${s.count} ticket${s.count === 1 ? "" : "s"}`}
+                      className={`flex-1 rounded-t-sm ${
+                        h >= 85
+                          ? "border-t-2 border-[#7b3434] bg-gradient-to-t from-[#7b3434]/40 to-[#7b3434]/10"
+                          : "bg-gradient-to-t from-[#7b3434]/20 to-[#7b3434]/5"
+                      }`}
+                      style={{ height: `${h}%` }}
+                    />
+                  );
+                })}
+              </div>
+              <div className="mt-3 grid grid-cols-10 gap-2 text-center text-[10px] uppercase tracking-[0.16em] text-zinc-600">
+                {activitySeries.map((s, idx) => (
+                  <div key={idx} title={s.fullLabel}>
+                    {s.label}
+                  </div>
                 ))}
               </div>
+              <p className="mt-2 text-[11px] text-zinc-500">
+                Hover a bar to see the exact date and ticket count.
+              </p>
             </div>
             <div className="flex flex-col rounded-xl border border-[#1F1F21] bg-[#111111] p-6">
               <div className="mb-6">
-                <h4 className="text-lg font-medium text-zinc-100">Priority Level</h4>
-                <p className="mt-1 text-xs text-zinc-500">Current open ticket distribution</p>
+                <h4 className="text-lg font-medium text-zinc-100">
+                  Priority Level
+                </h4>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Current open ticket distribution
+                </p>
               </div>
-              <ProgressRow label="High" value={highPct} bar="bg-[#D4A373]" />
-              <ProgressRow label="Medium" value={mediumPct} bar="bg-cyan-400" />
+              <ProgressRow label="High" value={highPct} bar="bg-[#7b3434]" />
+              <ProgressRow
+                label="Medium"
+                value={mediumPct}
+                bar="bg-[#ACD23C]"
+              />
               <ProgressRow label="Low" value={lowPct} bar="bg-zinc-500" />
             </div>
           </section>
 
-          <AgentPerformanceTable tickets={tickets} users={users} limit={5} onViewAllAgents={onViewAllAgents} showViewAllAgentsButton />
+          <AgentPerformanceTable
+            tickets={tickets}
+            users={users}
+            limit={5}
+            onViewAllAgents={onViewAllAgents}
+            showViewAllAgentsButton
+          />
 
           <footer className="flex flex-wrap items-center justify-between border-t border-[#1F1F21] px-2 py-4 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-600">
             <div className="flex gap-6">
               <span>System Health: Optimal</span>
-              <span>Server: unilag-mfb-support</span>
+              <span>Server: Production</span>
             </div>
-            <span>© {currentYear} unilag-mfb-support</span>
+            <span>© {currentYear} UNILAG MFB TICKETING SYSTEM</span>
           </footer>
         </>
       )}
@@ -241,27 +376,73 @@ function MetricBlock({
 }) {
   const iconSvg =
     icon === "article" ? (
-      <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m-6-8h6M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z" />
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        className="h-5 w-5"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2"
+          d="M9 12h6m-6 4h6m-6-8h6M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z"
+        />
       </svg>
     ) : icon === "pending" ? (
-      <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l2.5 2.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        className="h-5 w-5"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2"
+          d="M12 8v4l2.5 2.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
       </svg>
     ) : icon === "check_circle" ? (
-      <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        className="h-5 w-5"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2"
+          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
       </svg>
     ) : (
-      <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        className="h-5 w-5"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2"
+          d="M12 8v4l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
       </svg>
     );
 
   return (
-    <div className={`space-y-4 rounded-xl border border-[#1F1F21] bg-[#111111] p-6 ${loading ? "animate-pulse" : ""}`}>
+    <div
+      className={`space-y-4 rounded-xl border border-[#1F1F21] bg-[#111111] p-6 ${loading ? "animate-pulse" : ""}`}
+    >
       <div className="flex items-start justify-between">
-        <span className={`rounded-lg p-2 ${loading ? "bg-zinc-800/70 text-zinc-700" : "bg-[#D4A373]/10 text-[#D4A373]"}`}>{iconSvg}</span>
+        <span
+          className={`rounded-lg p-2 ${loading ? "bg-zinc-800/70 text-zinc-700" : "bg-[#7b3434]/10 text-[#7b3434]"}`}
+        >
+          {iconSvg}
+        </span>
         {loading ? (
           <span className="h-4 w-10 rounded-full bg-zinc-800/70" />
         ) : (
@@ -271,7 +452,9 @@ function MetricBlock({
         )}
       </div>
       <div>
-        <p className="text-xs uppercase tracking-[0.16em] text-zinc-500">{label}</p>
+        <p className="text-xs uppercase tracking-[0.16em] text-zinc-500">
+          {label}
+        </p>
         {loading ? (
           <div className="mt-2 h-8 w-24 rounded bg-zinc-800/70" />
         ) : (
@@ -303,4 +486,3 @@ function ProgressRow({
     </div>
   );
 }
-

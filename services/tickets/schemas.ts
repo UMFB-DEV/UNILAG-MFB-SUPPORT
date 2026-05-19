@@ -14,6 +14,7 @@ export const apiTicketSchema = z.object({
   category: z.string(),
   priority: z.enum(["low", "medium", "high"]),
   status: z.enum(["open", "in_progress", "resolved", "closed"]),
+  imageUrl: z.string().nullable().optional(),
   createdAt: z.string(),
   updatedAt: z.string().optional().nullable(),
   resolvedAt: z.string().optional().nullable(),
@@ -28,6 +29,7 @@ export const createTicketInputSchema = z.object({
   description: z.string().min(3),
   category: z.string().min(2),
   priority: z.enum(["low", "medium", "high"]).optional(),
+  image: z.any().optional(),
 });
 
 export type CreateTicketInput = z.infer<typeof createTicketInputSchema>;

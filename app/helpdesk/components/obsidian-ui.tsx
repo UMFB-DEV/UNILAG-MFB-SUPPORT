@@ -52,12 +52,12 @@ export function StatusPill({
 }) {
   const toneMap: Record<typeof tone, string> = {
     open: "bg-[#1e3a8a33] text-blue-300 border-blue-500/30",
-    progress: "bg-[#92400e33] text-amber-300 border-amber-500/30",
-    resolved: "bg-[#14532d33] text-emerald-300 border-emerald-500/30",
+    progress: "bg-[#7b343433] text-[#7b3434] border-[#7b3434]/30",
+    resolved: "bg-[#ACD23C33] text-[#ACD23C] border-[#ACD23C]/30",
     closed: "bg-zinc-700/30 text-zinc-300 border-zinc-500/30",
-    high: "bg-red-900/35 text-red-300 border-red-500/30",
+    high: "bg-[#7b343433] text-[#7b3434] border-[#7b3434]/30",
     medium: "bg-amber-900/35 text-amber-300 border-amber-500/30",
-    low: "bg-emerald-900/35 text-emerald-300 border-emerald-500/30",
+    low: "bg-[#ACD23C33] text-[#ACD23C] border-[#ACD23C]/30",
   };
   return <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${toneMap[tone]}`}>{label}</span>;
 }

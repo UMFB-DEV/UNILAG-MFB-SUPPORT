@@ -38,6 +38,7 @@ export type Ticket = {
   category: string;
   priority: TicketPriority;
   status: TicketStatus;
+  imageUrl?: string | null;
   createdBy: number;
   assignedTo: number | null;
   created: number;

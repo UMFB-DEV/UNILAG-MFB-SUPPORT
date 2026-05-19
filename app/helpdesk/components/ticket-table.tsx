@@ -1,8 +1,15 @@
-import type { Ticket, TicketPriority, TicketStatus, User } from "@/lib/helpdesk/demoData";
+import type {
+  Ticket,
+  TicketPriority,
+  TicketStatus,
+  User,
+} from "@/lib/helpdesk/demoData";
 
 import { StatusPill } from "./obsidian-ui";
 
-function toneFromStatus(status: TicketStatus): "open" | "progress" | "resolved" | "closed" {
+function toneFromStatus(
+  status: TicketStatus,
+): "open" | "progress" | "resolved" | "closed" {
   if (status === "Open") return "open";
   if (status === "In Progress") return "progress";
   if (status === "Resolved") return "resolved";
@@ -42,7 +49,10 @@ export function TicketTable({
   users: User[];
   onOpen: (id: string) => void;
   canAssign?: boolean;
-  assignOptionsByTicketId?: Record<string, { id: string; name: string; email: string }[]>;
+  assignOptionsByTicketId?: Record<
+    string,
+    { id: string; name: string; email: string }[]
+  >;
   onAssign?: (ticketId: string, assignedToId: string) => void;
   assigningTicketId?: string | null;
   onDelete?: (ticketId: string) => void;
@@ -62,7 +72,9 @@ export function TicketTable({
             <th className="px-3 py-3">Priority</th>
             <th className="px-3 py-3">Assignee</th>
             <th className="px-3 py-3">Updated</th>
-            {onDelete ? <th className="px-3 py-3 text-right">Actions</th> : null}
+            {onDelete ? (
+              <th className="px-3 py-3 text-right">Actions</th>
+            ) : null}
           </tr>
         </thead>
         <tbody>
@@ -72,7 +84,10 @@ export function TicketTable({
               className="cursor-pointer border-b border-[#1F1F21] hover:bg-[#1A1A1A]"
               onClick={() => onOpen(t.id)}
             >
-              <td className="px-3 py-4 font-mono text-xs text-[#D4A373]" title={t.id}>
+              <td
+                className="px-3 py-4 font-mono text-xs text-[#7b3434]"
+                title={t.id}
+              >
                 {shortId(t.id)}
               </td>
               <td className="px-3 py-4">
@@ -83,14 +98,17 @@ export function TicketTable({
                 <StatusPill tone={toneFromStatus(t.status)} label={t.status} />
               </td>
               <td className="px-3 py-4">
-                <StatusPill tone={toneFromPriority(t.priority)} label={t.priority} />
+                <StatusPill
+                  tone={toneFromPriority(t.priority)}
+                  label={t.priority}
+                />
               </td>
               <td className="px-3 py-4 text-zinc-300">
                 {t.assignedTo ? (
-                  userMap.get(t.assignedTo) ?? "Unknown"
+                  (userMap.get(t.assignedTo) ?? "Unknown")
                 ) : canAssign && assignOptionsByTicketId && onAssign ? (
                   <select
-                    className="w-full max-w-[220px] rounded-lg border border-[#2A2A2C] bg-[#111111] px-2 py-1.5 text-xs text-zinc-200 outline-none focus:border-[#D4A373]"
+                    className="w-full max-w-[180px] rounded-lg border border-[#2A2A2C] bg-[#111111] px-2 py-1.5 text-xs text-zinc-200 outline-none focus:border-[#7b3434]"
                     disabled={
                       assigningTicketId === t.id ||
                       !assignOptionsByTicketId[t.id] ||
@@ -106,7 +124,8 @@ export function TicketTable({
                     }}
                   >
                     <option value="" disabled>
-                      {assignOptionsByTicketId[t.id] && assignOptionsByTicketId[t.id].length > 0
+                      {assignOptionsByTicketId[t.id] &&
+                      assignOptionsByTicketId[t.id].length > 0
                         ? assigningTicketId === t.id
                           ? "Assigning..."
                           : "Assign agent"
@@ -145,4 +164,3 @@ export function TicketTable({
     </div>
   );
 }
-

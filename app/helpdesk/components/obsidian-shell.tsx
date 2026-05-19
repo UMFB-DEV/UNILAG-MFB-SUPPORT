@@ -11,7 +11,15 @@ function mobileIcon(id: MainView) {
   const cls = "h-5 w-5";
   if (id === "dashboard") {
     return (
-      <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        className={cls}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M3 13h8V3H3v10z" />
         <path d="M13 21h8V11h-8v10z" />
         <path d="M13 3h8v6h-8V3z" />
@@ -21,7 +29,15 @@ function mobileIcon(id: MainView) {
   }
   if (id === "tickets" || id === "my-tickets") {
     return (
-      <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        className={cls}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M4 7h16" />
         <path d="M4 12h16" />
         <path d="M4 17h16" />
@@ -30,14 +46,30 @@ function mobileIcon(id: MainView) {
   }
   if (id === "new-ticket") {
     return (
-      <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        className={cls}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M12 5v14" />
         <path d="M5 12h14" />
       </svg>
     );
   }
   return (
-    <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      className={cls}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M12 20a8 8 0 1 0-8-8" />
       <path d="M4 12a8 8 0 0 0 8 8" />
       <path d="M12 8v4l3 3" />
@@ -48,7 +80,15 @@ function mobileIcon(id: MainView) {
 
 function signOutIcon() {
   return (
-    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      className="h-5 w-5"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M10 17l5-5-5-5" />
       <path d="M15 12H3" />
       <path d="M21 21V3" />
@@ -77,7 +117,9 @@ export function ObsidianShell({
 }) {
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
 
-  const mobileNav = showNewTicketAction ? nav : nav.filter((i) => i.id !== "new-ticket");
+  const mobileNav = showNewTicketAction
+    ? nav
+    : nav.filter((i) => i.id !== "new-ticket");
 
   function handleSignOutClick() {
     setShowSignOutConfirm(true);
@@ -92,8 +134,15 @@ export function ObsidianShell({
     <div className="min-h-screen bg-[#0B0B0C] text-zinc-100">
       <aside className="fixed left-0 top-0 hidden h-full w-64 border-r border-[#1F1F21] bg-[#111111] p-4 md:flex md:flex-col">
         <div className="mb-10 px-2">
-          <h1 className="text-lg font-bold tracking-widest text-[#D4A373]">UNILAG-MFB-SUPPORT</h1>
-          <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-zinc-500">{roleLabel}</p>
+          <div className="mb-4 flex flex-col items-start gap-3">
+            <img src="/UMFB-LOGO.png" alt="UMFB Logo" className="h-12 w-auto" />
+            <h1 className="text-[11px] font-bold uppercase leading-tight tracking-widest text-[#7b3434]">
+              UNILAG MFB TICKETING SYSTEM
+            </h1>
+          </div>
+          <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+            {roleLabel}
+          </p>
         </div>
         <nav className="space-y-1">
           {nav.map((item) => (
@@ -102,7 +151,7 @@ export function ObsidianShell({
               onClick={() => onNavigate(item.id)}
               className={`w-full rounded-lg px-4 py-3 text-left text-sm font-medium transition ${
                 activeView === item.id
-                  ? "bg-[#1A1A1A] text-[#D4A373]"
+                  ? "bg-[#1A1A1A] text-[#ACD23C]"
                   : "text-zinc-500 hover:bg-[#1A1A1A] hover:text-zinc-200"
               }`}
               type="button"
@@ -115,7 +164,7 @@ export function ObsidianShell({
           {showNewTicketAction ? (
             <button
               onClick={() => onNavigate("new-ticket")}
-              className="w-full rounded-lg bg-[#D4A373] px-4 py-3 text-sm font-semibold text-[#111111] hover:brightness-110"
+              className="w-full rounded-lg bg-[#7b3434] px-4 py-3 text-sm font-semibold text-white hover:brightness-110"
               type="button"
             >
               New Ticket
@@ -133,7 +182,9 @@ export function ObsidianShell({
 
       <main className="md:ml-64">
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[#1F1F21] bg-[#0B0B0C]/85 px-6 backdrop-blur">
-          <p className="text-sm font-semibold tracking-wide text-zinc-200">Support Portal</p>
+          <p className="text-sm font-semibold tracking-wide text-zinc-200">
+            Support Portal
+          </p>
           <div className="flex items-center gap-3">
             <p className="hidden text-right text-xs text-zinc-400 sm:block">
               <span className="block text-zinc-200">{name}</span>
@@ -161,7 +212,7 @@ export function ObsidianShell({
               onClick={() => onNavigate(item.id)}
               className={`rounded-lg px-2 py-2 text-center text-[11px] font-semibold transition ${
                 activeView === item.id
-                  ? "bg-[#1A1A1A] text-[#D4A373]"
+                  ? "bg-[#1A1A1A] text-[#ACD23C]"
                   : "text-zinc-400 hover:bg-[#1A1A1A] hover:text-zinc-200"
               }`}
               type="button"
@@ -217,7 +268,7 @@ export function ObsidianShell({
                 Cancel
               </button>
               <button
-                className="flex-1 rounded-lg bg-red-600 px-4 py-3 text-sm font-bold uppercase tracking-[0.14em] text-[#111111] hover:brightness-110"
+                className="flex-1 rounded-lg bg-red-600 px-4 py-3 text-sm font-bold uppercase tracking-[0.14em] text-white hover:brightness-110"
                 onClick={handleSignOutConfirm}
                 type="button"
               >
