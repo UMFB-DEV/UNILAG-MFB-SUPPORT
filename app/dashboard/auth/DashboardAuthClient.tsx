@@ -50,6 +50,9 @@ export default function DashboardAuthClient({
       const maybe = err as { status?: unknown; message?: unknown };
       const status = typeof maybe.status === "number" ? maybe.status : null;
       const message = typeof maybe.message === "string" ? maybe.message : null;
+      if (status === 403 && message && message.toLowerCase().includes("deactivated")) {
+        return "Account deactivated. Contact admin.";
+      }
       if (status && status >= 500) return "Something went wrong. Please try again.";
       if (message) return message;
     }
@@ -78,6 +81,10 @@ export default function DashboardAuthClient({
               password: data.password,
             });
             if (!res.data) throw new Error("Missing auth data");
+            if (res.data.user && (res.data.user as { isActive?: unknown }).isActive === false) {
+              setLocalError("Account deactivated. Contact admin.");
+              return;
+            }
             setAuth({ token: res.data.token, user: res.data.user });
             router.replace(res.data.user.role === "admin" ? "/dashboard" : nextPath);
             return;
@@ -97,6 +104,10 @@ export default function DashboardAuthClient({
                   password: data.password,
                 });
           if (!res.data) throw new Error("Missing auth data");
+          if (res.data.user && (res.data.user as { isActive?: unknown }).isActive === false) {
+            setLocalError("Account deactivated. Contact admin.");
+            return;
+          }
           setAuth({ token: res.data.token, user: res.data.user });
           setPendingPostSignupRedirect(true);
         } catch (e) {

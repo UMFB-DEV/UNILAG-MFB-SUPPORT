@@ -35,14 +35,14 @@ async function parseJsonSafe(res: Response) {
   }
 }
 
-export async function deleteUserAction({ token, userId }: { token: string; userId: string }): Promise<void> {
+export async function deactivateUserAction({ token, userId }: { token: string; userId: string }): Promise<void> {
   if (process.env.NODE_ENV !== "production") {
     // eslint-disable-next-line no-console
-    console.log("[admin endpoint] DELETE /users/:id", { userId });
+    console.log("[admin endpoint] PATCH /users/:id/deactivate", { userId });
   }
 
-  const res = await fetch(`${BASE_URL}/users/${encodeURIComponent(userId)}`, {
-    method: "DELETE",
+  const res = await fetch(`${BASE_URL}/users/${encodeURIComponent(userId)}/deactivate`, {
+    method: "PATCH",
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -58,7 +58,36 @@ export async function deleteUserAction({ token, userId }: { token: string; userI
         : `Request failed (${res.status})`;
     if (process.env.NODE_ENV !== "production") {
       // eslint-disable-next-line no-console
-      console.error("[admin endpoint] DELETE /users/:id error", { status: res.status, message: msg, raw });
+      console.error("[admin endpoint] PATCH /users/:id/deactivate error", { status: res.status, message: msg, raw });
+    }
+    throw new ApiRequestError({ status: res.status, message: msg, raw });
+  }
+}
+
+export async function reactivateUserAction({ token, userId }: { token: string; userId: string }): Promise<void> {
+  if (process.env.NODE_ENV !== "production") {
+    // eslint-disable-next-line no-console
+    console.log("[admin endpoint] PATCH /users/:id/reactivate", { userId });
+  }
+
+  const res = await fetch(`${BASE_URL}/users/${encodeURIComponent(userId)}/reactivate`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (res.status === 204) return;
+
+  const raw = await parseJsonSafe(res);
+  if (!res.ok) {
+    const msg =
+      raw && typeof raw === "object" && "message" in raw && typeof raw.message === "string"
+        ? raw.message
+        : `Request failed (${res.status})`;
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.error("[admin endpoint] PATCH /users/:id/reactivate error", { status: res.status, message: msg, raw });
     }
     throw new ApiRequestError({ status: res.status, message: msg, raw });
   }

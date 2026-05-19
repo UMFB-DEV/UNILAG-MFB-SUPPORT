@@ -210,7 +210,38 @@ export async function assignTicketAction({
     body: JSON.stringify(payload),
   });
 
+  if (res.status === 204) {
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.log("[endpoint] PATCH /tickets/:id/assign response", {
+        status: res.status,
+        contentType: res.headers.get("content-type"),
+        body: "<no content>",
+      });
+    }
+    return { success: true };
+  }
+
+  const resClone = res.clone();
   const raw = await parseJsonSafe(res);
+  let rawText: string | null = null;
+  if (!raw) {
+    try {
+      rawText = await resClone.text();
+    } catch {
+      rawText = null;
+    }
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    // eslint-disable-next-line no-console
+    console.log("[endpoint] PATCH /tickets/:id/assign response", {
+      status: res.status,
+      contentType: res.headers.get("content-type"),
+      raw,
+      rawText,
+    });
+  }
 
   if (!res.ok) {
     const msg =
@@ -227,12 +258,24 @@ export async function assignTicketAction({
     throw new ApiRequestError({ status: res.status, message: msg, raw });
   }
 
-  const parsed = assignTicketResponseSchema.parse(raw);
+  if (!raw) {
+    return { success: true };
+  }
+
+  const parsed = assignTicketResponseSchema.safeParse(raw);
+  if (!parsed.success) {
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.error("[endpoint] PATCH /tickets/:id/assign parse error", { raw, error: parsed.error });
+    }
+    return { success: true };
+  }
+
   if (process.env.NODE_ENV !== "production") {
     // eslint-disable-next-line no-console
-    console.log("[tickets] PATCH /tickets/:id/assign response", parsed);
+    console.log("[tickets] PATCH /tickets/:id/assign response", parsed.data);
   }
-  return parsed;
+  return parsed.data;
 }
 
 export async function getTicketCommentsAction({
@@ -328,13 +371,24 @@ export async function createTicketAction({
   input: CreateTicketInput;
 }): Promise<CreateTicketResponse> {
   const payload = createTicketInputSchema.parse(input);
+
+  const formData = new FormData();
+  formData.append("title", payload.title);
+  formData.append("description", payload.description);
+  formData.append("category", payload.category);
+  if (payload.priority) {
+    formData.append("priority", payload.priority);
+  }
+  if (payload.image) {
+    formData.append("image", payload.image);
+  }
+
   const res = await fetch(`${BASE_URL}/tickets`, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify(payload),
+    body: formData,
   });
 
   const raw = await parseJsonSafe(res);

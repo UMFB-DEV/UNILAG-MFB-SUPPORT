@@ -37,17 +37,21 @@ export default function ResetPasswordClient({ token }: { token: string }) {
     }
 
     try {
-      const res = await resetPasswordMutation.mutateAsync({ token, newPassword });
+      const res = await resetPasswordMutation.mutateAsync({
+        token,
+        newPassword,
+      });
       setSuccessMessage(res.message || "Password reset successful");
     } catch (e) {
       if (e && typeof e === "object") {
         const maybe = e as { status?: unknown; message?: unknown };
         const status = typeof maybe.status === "number" ? maybe.status : null;
-        const message = typeof maybe.message === "string" ? maybe.message : null;
+        const message =
+          typeof maybe.message === "string" ? maybe.message : null;
         setError(
           status && status >= 500
             ? "Something went wrong. Please try again."
-            : message ?? "Something went wrong. Please try again.",
+            : (message ?? "Something went wrong. Please try again."),
         );
         return;
       }
@@ -58,14 +62,22 @@ export default function ResetPasswordClient({ token }: { token: string }) {
   return (
     <div className="min-h-screen bg-[#0B0B0C] px-6 py-12 text-zinc-100">
       <div className="mx-auto mb-10 max-w-md text-center">
-        <h1 className="text-lg font-bold uppercase tracking-[0.18em] text-[#D4A373]">UNILAG-MFB-SUPPORT</h1>
-        <p className="mt-2 text-xs uppercase tracking-[0.18em] text-zinc-500">Reset Password</p>
+        <h1 className="text-lg font-bold uppercase tracking-[0.18em] text-[#7b3434]">
+          UNILAG MFB TICKETING SYSTEM
+        </h1>
+        <p className="mt-2 text-xs uppercase tracking-[0.18em] text-zinc-500">
+          Reset Password
+        </p>
       </div>
 
       <div className="mx-auto w-full max-w-md rounded-xl border border-[#1F1F21] bg-[#111111] p-8 shadow-2xl">
         <div className="mb-6 text-center">
-          <h2 className="text-2xl font-semibold text-zinc-100">Choose a new password</h2>
-          <p className="mt-2 text-sm text-zinc-500">Your reset link is valid for a limited time.</p>
+          <h2 className="text-2xl font-semibold text-zinc-100">
+            Choose a new password
+          </h2>
+          <p className="mt-2 text-sm text-zinc-500">
+            Your reset link is valid for a limited time.
+          </p>
         </div>
 
         {error ? (
@@ -82,7 +94,9 @@ export default function ResetPasswordClient({ token }: { token: string }) {
 
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-xs uppercase tracking-[0.14em] text-zinc-500">New password</label>
+            <label className="mb-1 block text-xs uppercase tracking-[0.14em] text-zinc-500">
+              New password
+            </label>
             <input
               type="password"
               required
@@ -90,13 +104,17 @@ export default function ResetPasswordClient({ token }: { token: string }) {
               placeholder="••••••••"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              disabled={resetPasswordMutation.isPending || Boolean(successMessage)}
-              className="w-full rounded-lg border border-[#2A2A2C] bg-[#0B0B0C] px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[#D4A373] disabled:opacity-60"
+              disabled={
+                resetPasswordMutation.isPending || Boolean(successMessage)
+              }
+              className="w-full rounded-lg border border-[#2A2A2C] bg-[#0B0B0C] px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[#7b3434] disabled:opacity-60"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-xs uppercase tracking-[0.14em] text-zinc-500">Confirm password</label>
+            <label className="mb-1 block text-xs uppercase tracking-[0.14em] text-zinc-500">
+              Confirm password
+            </label>
             <input
               type="password"
               required
@@ -104,17 +122,23 @@ export default function ResetPasswordClient({ token }: { token: string }) {
               placeholder="••••••••"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              disabled={resetPasswordMutation.isPending || Boolean(successMessage)}
-              className="w-full rounded-lg border border-[#2A2A2C] bg-[#0B0B0C] px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[#D4A373] disabled:opacity-60"
+              disabled={
+                resetPasswordMutation.isPending || Boolean(successMessage)
+              }
+              className="w-full rounded-lg border border-[#2A2A2C] bg-[#0B0B0C] px-3 py-2 text-sm text-zinc-100 outline-none focus:border-[#7b3434] disabled:opacity-60"
             />
           </div>
 
           <button
-            className="w-full rounded-lg bg-[#D4A373] px-4 py-3 text-sm font-bold uppercase tracking-[0.14em] text-[#111111] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-lg bg-[#7b3434] px-4 py-3 text-sm font-bold uppercase tracking-[0.14em] text-white hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
             type="submit"
-            disabled={resetPasswordMutation.isPending || Boolean(successMessage)}
+            disabled={
+              resetPasswordMutation.isPending || Boolean(successMessage)
+            }
           >
-            {resetPasswordMutation.isPending ? "Resetting..." : "Reset Password"}
+            {resetPasswordMutation.isPending
+              ? "Resetting..."
+              : "Reset Password"}
           </button>
 
           {successMessage ? (

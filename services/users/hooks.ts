@@ -2,7 +2,14 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { createUserAction, deleteUserAction, getUsersAction, updateUserDepartmentAction, updateUserRoleAction } from "./action";
+import {
+  createUserAction,
+  deactivateUserAction,
+  getUsersAction,
+  reactivateUserAction,
+  updateUserDepartmentAction,
+  updateUserRoleAction,
+} from "./action";
 
 export function useUsersQuery({
   token,
@@ -22,12 +29,25 @@ export function useUsersQuery({
   });
 }
 
-export function useDeleteUserMutation({ token }: { token: string | null }) {
+export function useDeactivateUserMutation({ token }: { token: string | null }) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ userId }: { userId: string }) => {
       if (!token) throw new Error("Missing token");
-      await deleteUserAction({ token, userId });
+      await deactivateUserAction({ token, userId });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["users", token] });
+    },
+  });
+}
+
+export function useReactivateUserMutation({ token }: { token: string | null }) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ userId }: { userId: string }) => {
+      if (!token) throw new Error("Missing token");
+      await reactivateUserAction({ token, userId });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["users", token] });

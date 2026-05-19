@@ -1,8 +1,9 @@
 :root {
-  --primary: #4f46e5;
-  --primary-light: #eef2ff;
-  --primary-dark: #3730a3;
-  --success: #10b981;
+  --primary: #7b3434;
+  --primary-light: #7b343433;
+  --primary-dark: #5a2525;
+  --secondary: #ACD23C;
+  --success: #ACD23C;
   --warning: #f59e0b;
   --danger: #ef4444;
   --info: #3b82f6;
@@ -44,7 +45,7 @@
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  background: linear-gradient(135deg, #7b3434 0%, #5a2525 100%);
 }
 .hdp-auth-card {
   background: #fff;

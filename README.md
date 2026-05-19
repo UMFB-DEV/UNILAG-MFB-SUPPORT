@@ -1,4 +1,4 @@
-# UNILAG-MFB-SUPPORT
+# UNILAG MFB TICKETING SYSTEM
 
 A modern helpdesk/ticketing system built with Next.js (App Router), React Query, Zustand, Zod, and TailwindCSS. It supports admin, agent, and user roles with real-time ticket management, assignments, comments, and department-based routing.
 

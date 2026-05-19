@@ -1,16 +1,20 @@
 import { z } from "zod";
 
 export const ticketsPerAgentSchema = z.object({
-  agentId: z.string().optional(),
+  agentId: z.string(),
   agentEmail: z.string().email(),
   ticketCount: z.number(),
+  averageAssignedToResolvedMinutes: z.number().nullable().optional(),
 });
 
 export const reportsSummarySchema = z.object({
   totalTickets: z.number(),
   openTickets: z.number(),
+  inProgressTickets: z.number(),
+  resolvedTickets: z.number(),
   closedTickets: z.number(),
-  averageResolutionHours: z.number().nullable().optional(),
+  averageResolutionMinutes: z.number().nullable().optional(),
+  averageAssignedToResolvedMinutes: z.number().nullable().optional(),
   ticketsPerAgent: z.array(ticketsPerAgentSchema).optional(),
 });
 

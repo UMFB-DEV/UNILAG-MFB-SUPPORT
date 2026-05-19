@@ -7,6 +7,8 @@ export const apiUserSchema = z.object({
   role: z.enum(["user", "agent", "admin"]),
   department: z.string().optional().nullable(),
   createdAt: z.string().optional().nullable(),
+  averageAssignedToResolvedMinutes: z.number().optional().nullable(),
+  isActive: z.boolean().optional(),
 });
 
 export type ApiUser = z.infer<typeof apiUserSchema>;
